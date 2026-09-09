@@ -89,7 +89,7 @@ divergence pattern flagged as a problem in that same entry, just repeated immedi
 - **Fixed the working-dir/mirror layout.** Moved `README.md`, `JOURNAL.md`, `docs/`, `data/` out
   of `github/asm_lr_hprc2/` into the working directory (`project_ideas/asm_lr_hprc2/`), which is
   now canonical — matching how `asm_lr` itself is laid out (working dir = compute-facing +
-  real content, git mirror = derived curated copy). Wrote `scripts/sync_to_github.sh`: rsyncs
+  real content, git mirror = derived curated copy). Wrote `scripts/github/sync_to_github.sh`: rsyncs
   the curated set (README, JOURNAL, docs/, data/, scripts/qsub/) into the mirror and stages a
   commit (never auto-commits without a message, never pushes). This is the concrete answer to
   "how do we stop the mirror and working dir from diverging" — one direction of flow, one
@@ -103,7 +103,7 @@ divergence pattern flagged as a problem in that same entry, just repeated immedi
 **Produced:** `docs/data_sources.md` §5 and §7 rewritten with resolved findings;
 `data/hprc2_sample_manifest.tsv` regenerated (adds `has_harmonized_sup5_basecall`,
 `had_guppy_raw`, `had_dorado06_raw` columns; assembly URLs updated to 202/229 resolved);
-`scripts/qsub/A01a_download_hprc2_files.sh` + `test/` variant; `scripts/sync_to_github.sh`.
+`scripts/qsub/A01a_download_hprc2_files.sh` + `test/` variant; `scripts/github/sync_to_github.sh`.
 Ran the test variant (task 1, `HG00097`) live to validate the script end-to-end rather than
 just eyeballing it.
 
@@ -133,7 +133,7 @@ all 229) and approved submitting the full array as-is, into the project director
   wasted re-download.
 - Committed and pushed the working directory's curated set to
   `git@github.com:terencewtli/asm_lr_hprc2.git` (remote already existed, pre-created) via
-  `scripts/sync_to_github.sh`.
+  `scripts/github/sync_to_github.sh`.
 
 **Produced:** first commit to `github/asm_lr_hprc2`, pushed. Contents: `README.md` (proposal),
 `JOURNAL.md` (this file), `docs/data_sources.md`, `data/hprc2_sample_manifest.tsv`,
