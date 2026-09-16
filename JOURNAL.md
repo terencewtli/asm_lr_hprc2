@@ -19,6 +19,107 @@ Entry template:
 
 ---
 
+## 2026-09-15 — haplotype-assignment confound investigated end-to-end: real, but not fixable from modbed coordinates alone; het-count filter built, validated, and scaled genome-wide
+
+**State at start:** project had 202/229 assemblies + harmonized modbeds downloaded (from the
+2026-09-08 entries) but no analysis pipeline. `md/20260915_haplotype_assignment_modbed_fix.md`
+raised a specific concern: HPRC2's hap1/hap2 modbeds are produced by mapping ONT reads to
+haplotype-specific assemblies, but for allele-specific methylation (ASM) it only makes biological
+sense to trust a read's hap assignment if that read actually spans a site where the two haplotype
+assemblies differ (a het site) — a read that maps to hap1 tie-broken by chance carries no real
+phasing information. The doc proposed filtering modbed reads by a het-site count threshold `k`.
+
+**Decisions made:**
+- **Confirmed the premise is real**, not a hypothetical — orthogonally verified via a forked
+  investigation plus the HPRC2 paper's own Methods text: reads are assigned to whichever
+  haplotype assembly they align to best, with ties broken arbitrarily, not by genotype-informed
+  read-level phasing.
+- Built the chr15 pilot as the test case (`scripts/harmonize_hg38/pilot/`), validating against
+  98 chr15 imprinted DMRs from Zink et al. 2018 (`data/zink_2018_supp5_pofo_dmrs.csv`) as a
+  positive control — these are loci where hap1-vs-hap2 methylation divergence is expected to be
+  large and real, so a working filter should raise measured purity/separation on this set without
+  needing new ground truth.
+- **H01** (`H01_call_hap_het_sites.py`): calls the actual hap1-vs-hap2 het sites per donor/chrom
+  via direct assembly-vs-assembly alignment (`minimap2 -cx asm5 --cs` + `paftools.js call`) —
+  answers the user's own question directly: het sites come from the assemblies, not the BAMs,
+  since modbeds only carry base-mod calls, not genotype. Fixed a bug where `paftools.js call`'s
+  mixed `R`(region)/`V`(variant) output lines were treated as uniform BED3 — filtered to `V` only.
+- **H02** (`H02_filtered_locus_matrix.py`): filters modbed reads by (a) het-site count ≥ `k`
+  spanned by that read and (b) HMMFlagger assembly-reliability overlap (excludes reads over
+  Col/Dup/Err/NNN-flagged assembly regions). Fixed a silent-zero bug — `load_het_sites` kept the
+  modbed's full `SAMPLE#hap#accession` contig name while the chainmap/lookup used bare accessions,
+  so every read's het count silently came back 0 (100% filtered, indistinguishable from "k is too
+  strict" without the fix). Also fixed a severe perf bug (ChainMap rebuilt per-call instead of
+  cached — 25+ min for 980 calls dropped to 26s once cached).
+- **H03** (`H03_validate_k_sweep.py`): swept `k` from 0 to 30 (`[0,1,2,3,5,10,20,30]`) against the
+  98 chr15 DMRs, using a purity metric (`max(n_high, n_low) / n_reads` at a 0.5 methylation-
+  fraction split, `MIN_READS=3`). **Finding: essentially no benefit from raising k** — max
+  locus-level purity change across the entire k range was only 0.08 across 196 (locus, hap)
+  pairs. The filter removes reads that can't be trusted, but doesn't resolve the residual
+  disagreement.
+- **H04** (`H04_epiallele_classification.py`, new): asked *why* purity plateaus — used GMM(k=1)
+  vs GMM(k=2) BIC comparison per (region, hap) to classify each locus as genuinely bimodal
+  (real ASM signal, purity metric applies) vs. unimodal (not actually imprinted/allele-specific
+  at this locus, purity metric is meaningless there). **Only 32.7% of test loci are genuinely
+  bimodal.** Even restricting to those, per-read disagreement persists — this is a real biological
+  ceiling (equivalent to an "epiallele pattern" question, not a filtering-parameter question), not
+  fixable from modbed coordinates because the missing 19-25% of resolving power requires read
+  sequence/genotype information the modbed format doesn't carry.
+- **Considered and rejected** an alternative: re-deriving everything from raw unaligned HiFi BAMs
+  (`tsv/meta/igsr_HPRC2.tsv`) using `asm_lr`'s original from-scratch methodology (align + call
+  methylation from kinetics + WhatsHap haplotag), scaled to 230 donors. Rejected as much more
+  expensive for a problem that's a real ceiling, not a pipeline bug — the marginal few % of
+  reads it might recover isn't worth re-running the full stack at 230-donor scale.
+- **Decision on k**: default to `k=1` (any het-site-spanning requirement at all), not the doc's
+  suggested k≥2-3 — since H03 showed no measured benefit from going higher, and lower k retains
+  more reads/coverage for the same purity.
+- **G01** (`G01_call_hap_vs_hg38.py`, new, separate track): implemented hap-vs-hg38 variant
+  calling (dipcall-style) for the pilot, since projecting hap-specific coordinates to hg38 is
+  independently useful for this project beyond the filtering question. `dipcall-aux.js vcfpair`
+  turned out to require GT:AD format that a pure assembly-vs-reference comparison doesn't produce
+  (no read depth concept applies) — replaced it with a custom `merge_diploid()` that phases the
+  hap1 and hap2 VCFs directly into one diploid VCF, dropping REF-mismatch positions (indel-
+  representation disagreements between the two haplotype calls, 1650 dropped in the pilot test).
+- **P03** (`P03_build_pilot_matrix.py`, rewritten): now calls H02's filtering logic directly
+  instead of orchestrating raw P01+P02 output (H02 is a strict superset of what P01+P02 did).
+  Fixed a correctness bug: a (sample, chrom) missing H01 het-site output must be **skipped
+  entirely**, not silently treated as "zero het sites everywhere" (which would filter out 100% of
+  that locus's reads and look like real "0 kept" data rather than a missing-input gap). Original
+  unfiltered 229-donor P01/P02 output preserved untouched at `results/pilot/per_sample/`; new
+  filtered output goes to a separate `results/pilot_filtered_k1/per_sample/`.
+- **Scaled H01 genome-wide**: submitted `scripts/qsub/H01_call_hap_het_sites_array.sh` as
+  **job 14756945**, 4,444 tasks (202 resolved-assembly donors × chr1-22), `-tc 60` throttle,
+  `h_data=8G,h_rt=1:00:00` per task. This is the input P03/H02 need to scale past the single
+  HG00097/chr15 case they've been validated on so far. Still running as of this entry (51/4444
+  tasks concurrently active under the throttle, rest queued).
+
+**Produced:** `scripts/harmonize_hg38/pilot/{chainmap.py, H01..H04, G01, P01..P04}.py`,
+`scripts/qsub/{H01_call_hap_het_sites.sh, H01_call_hap_het_sites_array.sh,
+G01_call_hap_vs_hg38.sh, P03_build_pilot_matrix.sh}`, `txt/samples/h01_sample_chrom_tasks.txt`
+(4,444-row task list), job 14756945 (in progress).
+
+**Open / next:**
+1. **Monitor job 14756945** — once it finishes, P03/H02 can scale from the single HG00097/chr15
+   case to the full 202-donor × 22-autosome grid. This is the direct prerequisite for building a
+   real donors × CpGs ASM matrix at scale.
+2. Build out the DMR-level ASM analysis over the full panel once the filtered matrix exists —
+   this is the actual paper-facing deliverable; H01-H04 were all pilot/validation work to decide
+   *whether* and *how* to filter, not the analysis itself.
+3. **`scripts/github/sync_to_github.sh` gap**: only rsyncs `docs/`, `data/`, `scripts/qsub/` —
+   does not sync `scripts/harmonize_hg38/` (all the H01-H04/G01/P01-P04 pilot code lives there).
+   Should be fixed to include it (excluding the heavy `tmp_chr*/` intermediate dirs, ~24GB each,
+   which must stay out of the git mirror) so the mirror doesn't miss the actual pipeline code.
+4. Write up the null-ish k-sweep + epiallele-bimodality result plainly in `README.md`/docs — it's
+   a real, defensible finding ("k=1 is sufficient; residual disagreement is a genuine biological
+   ceiling, not a filtering gap") not a dead end, and should be framed that way when this becomes
+   part of the paper's methods/limitations section.
+
+**If resuming, read:** this entry, then `md/20260915_haplotype_assignment_modbed_fix.md` for the
+original question, then `scripts/harmonize_hg38/pilot/H02_filtered_locus_matrix.py` and
+`H04_epiallele_classification.py` for the two pieces of code that actually answer it.
+
+---
+
 ## 2026-09-08 — project founded; HPRC2 discovered, proposal drafted, sample manifest built
 
 **State at start:** `asm_lr` (the predecessor project) had, the day before, locked a paper scope
