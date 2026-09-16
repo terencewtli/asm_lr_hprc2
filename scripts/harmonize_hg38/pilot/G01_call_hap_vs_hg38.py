@@ -23,7 +23,7 @@ distance the way statistical/read-based phasing has), the merge just has to enco
 existing phase into one VCF's GT field per shared position.
 
 Usage: G01_call_hap_vs_hg38.py <sample> <hg38_chrom>
-Writes to tmp_<chrom>/<sample>/hap_vs_hg38/:
+Writes to data/vcf_tmp/tmp_<chrom>/<sample>/hap_vs_hg38/:
   hap1.vcf.gz, hap2.vcf.gz    (per-haplotype haploid calls against hg38, sorted+indexed)
   diploid.vcf.gz              (phased 2-haplotype VCF, GT field encodes hap1|hap2 alleles)
 """
@@ -33,6 +33,7 @@ from pathlib import Path
 
 PROJDIR = Path('/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2')
 ASSEMBLY_DIR = PROJDIR / 'data' / 'assemblies'
+VCF_TMP_DIR = PROJDIR / 'data' / 'vcf_tmp'
 HERE = Path(__file__).parent
 
 REF_GENOME = Path('/u/project/cluo/terencew/reference/hg38_igvf/GRCh38.autosome.fa')
@@ -182,7 +183,7 @@ def merge_diploid(hap1_vcf, hap2_vcf, sample, chrom, ref_fa, outdir):
 
 def main():
     sample, chrom = sys.argv[1], sys.argv[2]
-    outdir = HERE / f'tmp_{chrom}' / sample / 'hap_vs_hg38'
+    outdir = VCF_TMP_DIR / f'tmp_{chrom}' / sample / 'hap_vs_hg38'
     outdir.mkdir(parents=True, exist_ok=True)
 
     # reuse H01's chr15-contig discovery instead of re-deriving it

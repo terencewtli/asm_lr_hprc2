@@ -111,6 +111,166 @@ in place before trusting any P03 output.
 
 ---
 
+## 2026-09-16 — same day, later: population-genetics QC sweep (coverage, methylation, PCA, SNP/CpG landscape, dipcall VCFs) — found and confirmed a real ancestry-driven detection-rate confound, documented upstream in ont_asm_caller
+
+**State at start:** the entry above had just fixed the post-reorg path bugs and resubmitted
+H01/P03. User asked for a broad QC sweep motivated by the README's new framing (population-scale
+sequence determinants of ASM, not just detection): coverage QC, global methylation vs.
+covariates, LCL monoclonality literature, XCI feasibility, SNP/CpG landscape, PMD feasibility,
+dipcall-style per-donor VCFs, ancestry PCA, and population-genetics stats (AF/LD). Dispatched as
+a series of parallel forks plus direct work; results below are what actually finished.
+
+**Decisions made / findings:**
+- **Coverage QC** (`notebooks/qc/QC03_actual_vs_reported_ont_coverage.ipynb`): HPRC2's reported
+  `coverage_ont` (Supp Table S6) is diploid/total, not per-haplotype — measured actual
+  hap1+hap2 depth vs. reported, median ratio 0.94 (expected shortfall: modbed only contains
+  mapped+haplotype-assigned reads). **Recommend reporting both diploid and per-haplotype depth**
+  in any donor QC table — diploid matches HPRC2's own convention, but per-haplotype is what
+  actually gates power in H02's het-site filter. Two donors (HG02293, NA19776) flagged at
+  ratio 0.66, well below the rest (0.86–1.18) — only single-window-sampled, needs a genome-wide
+  check before treating as real.
+- **Global methylation vs. covariates** (`QC04_global_methylation_covariates.ipynb`, full
+  219-donor cohort, 438 hap-observations, `scripts/qsub/M01_global_methylation_array.sh` job
+  14765944): range 0.521–0.726. Directly quantified: **ancestry alone R²=0.115** (F=13.6,
+  p=2×10⁻¹⁰), sex alone 0.017, haplotype (within-donor) 0.002, all three combined only 0.125 —
+  ancestry is doing essentially all the explanatory work in the "common covariates" set, and it
+  still leaves ~87.5% of variance unexplained. **Passage number** (found in
+  `reference/hprc2/hprc2_supp.xlsx` Table S15 — missed by the first covariate-scoping pass,
+  which only checked the manifest + public 1000G metadata) looked like a real additional
+  covariate at small n (15 donors: R² 0.477→0.647 adding passage, p=0.0056) but **did not hold
+  up at full cohort scale** (R² 0.161→0.168, p=0.099) — passage is confounded with ancestry
+  cohort-wide (passage=3 is 12/12 EUR), so the small-n result was likely ancestry leaking through
+  as apparent passage effect. Age and passage-8-12 donors remain genuinely unavailable (no
+  age/DOB field anywhere public for this cohort; passage 8-12 donors lack modbed data entirely).
+- **XIST skew QC** (`QC05_xist_skew_qc.ipynb`, 98 female donors, coordinates verified via
+  Ensembl REST): skew is small and unimodal (mean 0.037, max 0.117) — **not** the bimodal
+  clonality signature a working assay should show. Diagnosed, not treated as a real negative:
+  it measured the whole ~32kb XIST gene body instead of the diagnostic 5' promoter/CpG island,
+  which would dilute any real skew toward exactly this muted pattern regardless of true
+  clonality. Narrowing the window is the next step, not a pipeline rebuild. Also: even a clean
+  measurement here would only rule out severe/skewed monoclonality, not a balanced 2-clone
+  mixture — XCI skew is a chrX-specific readout, not a substitute for an autosomal clonality
+  metric.
+- **LCL monoclonality literature** (no code, WebSearch): confirmed via Plagnol et al. 2008
+  (*PLoS ONE*, PMC2494943) — using XCI skew across 1,174 LCLs, only 52–68% had balanced XCI vs.
+  88–92% in matched peripheral blood, ~60% pauciclonal, **≥22% effectively monoclonal**. Real,
+  quantified confound for bulk LCL-derived ASM, not hypothetical. Cheapest workaround: the XIST
+  skew metric above, once fixed to the promoter window, doubles as a per-donor clonality QC
+  filter/covariate.
+- **PMD feasibility**: confirmed in literature that EBV-transformed LCLs specifically (not just
+  cancer generally) reliably produce PMDs (Frontiers in Genetics 10.3389/fgene.2017.00076 and
+  corroborating sources) — this cohort should be treated as PMD-positive by strong prior. No
+  real computational first pass yet; drafted (unexecuted) skeleton at
+  `notebooks/qc/QC06_pmd_windowed_methylation_DRAFT.ipynb` (windowed mean methylation +
+  CpG-density correction + segmentation).
+- **HPRC2 paper mining**: the actual paper (bioRxiv 2026.07.21.739710v1, PMC13419748) and its
+  22-table supplementary xlsx were already sitting locally, unopened
+  (`reference/hprc2/hprc2_supp.xlsx`) — opened directly rather than re-fetching. Table S11
+  ("Significant promoter mQTL with lead variants," 80,854 rows) is HPRC2's own var-CpG table
+  (promoter-scoped, not genome-wide) — directly reusable as a positive control. Table S15 is
+  where passage number and karyotype live (see above); only 4/234 donors show non-standard
+  karyotype, all benign constitutional variants, not culture-induced instability.
+- **Dipcall-style per-donor VCFs**: `G01_call_hap_vs_hg38.py` (dipcall-style hap-vs-hg38 calling,
+  already existed from 2026-09-15 but had never actually been run and had the same stale-path
+  bug as everything else — fixed) → new `G02_build_donor_snp_vcf.py` (biallelic-SNP filtering)
+  → new `G03_merge_cohort_vcf.py` (cohort-merged **and** per-superpopulation-merged VCFs).
+  Validated on 5 donors (one per superpopulation): 75–88K variants/donor, cohort-merge ts/tv=1.94
+  (healthy). Chained full run submitted: G01 array job **14766207** (4444 tasks) →
+  G02 job **14766210** → G03 job **14766213**, still running as of this entry. Confirmed asm_lr's
+  original dipcall tooling (`D03`/`D04`, real `dipcall-aux.js`) was the precedent, but G01's
+  direct-phasing approach is correct for this input shape (see 2026-09-15 entry for why
+  `vcfpair` doesn't fit an assembly-vs-reference comparison) — not a regression to fix.
+- **Known permanent gap**: HG00272 has no chain file on HPRC2's bucket at all (confirmed 404,
+  not a download bug) — that donor's liftover-dependent outputs (H01, G01/G02) will have a
+  contained, permanent gap unless HPRC2 deposits it or chains are derived independently.
+- **Ancestry PCA**: built a reusable pipeline (now living in the shared
+  `/u/project/cluo/terencew/claude/reference/1000G/scripts/run_1000g_pca.sh`, since this is
+  useful across projects, not just this one) — subsets the 1000G high-coverage (NYGC, hg38)
+  panel to an arbitrary donor list, biallelic SNPs, MAF≥0.05, LD-pruned, `plink --pca`. Run on
+  221/229 HPRC2 donors (chr1-3, 104K pruned SNPs): **PC1 51.0%, PC2 18.8%, PC3 8.7%** of
+  variance — real, strong continental structure, and zero label mismatches between the 1000G
+  pedigree's superpopulation call and this project's own manifest. Output and notebook moved to
+  `reference/1000G/pca/asm_lr_hprc2/` and `reference/1000G/ipynb/PCA01_1000g_ancestry_pca.ipynb`
+  per the same "shared reference, not project-specific" reasoning.
+- **Population genetics stats** (`QC08_popgen_af_ld_hetsite_overlap.ipynb`): using the PCA's
+  chr1-3 1000G-subset VCFs. Real ancestry divergence even among panel-common (MAF≥5%) sites —
+  EAS: 14.6% become monomorphic and 25.1% become rare within-population vs. AFR's 3.1%/15.4%.
+  LD decay is textbook ancestry-structured in this exact panel: AFR r²=0.40 at 0-10kb vs. EAS
+  0.78. Attempted het-site (H01) vs. 1000G-panel overlap (>99% no-match) but flagged its own
+  caveat: the AF lookup used was already MAF-pruned for the PCA, so "no match" can't yet
+  distinguish "genuinely novel" from "present but rare" — needs a rerun against an unfiltered AF
+  source. **Decided against re-deriving an unfiltered 1000G table for this — gnomAD is the
+  better source** (order-of-magnitude larger per-ancestry N, ships genome-wide per-population
+  AF/AC/AN tables as its primary product) for AF-based rare/common classification specifically,
+  while 1000G/NYGC remains right for PCA/LD (needs named per-sample genotypes gnomAD doesn't
+  publish). Not yet downloaded — plan is to query gnomAD's public GCS-hosted site VCFs by region
+  (remote tabix, no bulk download) once there's a concrete het-site position list to look up, not
+  pull the whole dataset onto an already ~95%-full filesystem.
+- **The headline finding: ancestry-driven heterozygosity density is a real, large, measured
+  confound.** Computed directly from H01's own output, 197 donors with complete data:
+
+  | superpop | n donors | mean het sites/Mb |
+  |---|---|---|
+  | AFR | 54 | 1470.4 |
+  | SAS | 36 | 1166.2 |
+  | AMR | 40 | 1137.3 |
+  | EUR | 29 | 1130.0 |
+  | EAS | 38 | 1073.4 |
+
+  One-way ANOVA: **R²=0.917, F=530, p=1.6×10⁻¹⁰²** — superpopulation alone explains 91.7% of
+  variance in het-site density. AFR donors carry ~37% more heterozygous sites/Mb than EAS. Since
+  every het-site-filtered test (H02's `k≥1`, and any ASM test that needs a phasing-informative
+  read) can only fire on reads spanning a het site, this means **raw cross-ancestry "ASM
+  detection rate" comparisons are confounded by this mechanical effect before any real biology
+  is considered** — a population with lower baseline heterozygosity will show fewer detectable
+  loci even if the true underlying regulation is identical.
+- **Decided this belongs in the caller, not the filter, and documented it as such in
+  `github/ont_asm_caller`** (a separate repo/project, not just this one) — see that repo's
+  2026-09-16 JOURNAL/PRIORITIES-item-8/README entries, pushed as commits `3a4d202` and
+  `412069e`. Explicitly rejected the tempting fix (ancestry-conditional filter thresholds) as
+  worse than the problem — it trades a quantifiable confound for an ancestry-conditional
+  analytical choice. The intended fix is a caller-level output change: report per-locus
+  het-site-informative-read count as an explicit power/confidence indicator (extending the
+  caller's existing measured-nuisance-parameter posture for DE/dispersion/call-error), so
+  low-heterozygosity-population loci come out "underpowered" rather than silently "not detected."
+- **Housekeeping**: two forks briefly duplicated work on the same methylation-covariates
+  question after a mid-session file rename wasn't communicated to an already-running fork —
+  caught and cleaned up (one stale `QC03_global_methylation_covariates.ipynb` deleted, canonical
+  version is `QC04`). `notebooks/qc/` numbering: QC01-QC08 now assigned, QC06 is an unexecuted
+  draft, QC07 (SNP/CpG landscape: het-SNP/CpG counts, CpG-disrupting SNP rate, CpG-density
+  architecture, all ancestry-stratified) was still running as of this entry.
+
+**Produced:** `notebooks/qc/QC03`–`QC08` (QC06 draft, QC07 still pending), `scripts/qsub/
+M01_global_methylation_array.sh`, `scripts/harmonize_hg38/all_donors/G02_build_donor_snp_vcf.py`,
+`G03_merge_cohort_vcf.py` + their array/qsub scripts, `results/qc/data/het_site_density_by_superpop.tsv`,
+`reference/1000G/{scripts,pca/asm_lr_hprc2,ipynb,tsv/meta}/*` (shared reference dir, not this
+project). Jobs in flight: 14765944 (done, M01), 14766207/10/13 (G01→G02→G03, running).
+`github/ont_asm_caller` commits `3a4d202`, `412069e` (pushed).
+
+**Open / next:**
+1. **QC07 (SNP/CpG landscape + CpG-architecture) still running** — check on completion; it's the
+   direct input to "do we gain/lose CpGs per ancestry" and the corrected CpG-disrupting-SNP rate.
+2. **G01→G02→G03 dipcall VCF pipeline still running** (4444-task G01 array) — once done, gives a
+   native (non-1000G-borrowed) per-donor and per-superpopulation genotype/AF source.
+3. **Rare/private-variant extension planned, not yet built**: per-donor private CpG/SNP fraction
+   by superpopulation, and a corrected common-vs-rare het-site classification against gnomAD
+   (not the MAF-pruned 1000G table QC08 used). Blocked on QC07/QC08 informing exact scope, and
+   on deciding gnomAD access approach (remote region query vs. download).
+4. **The actual detection-rate effect of the het-site-density confound on real ASM calls** is
+   still unmeasured — needs the beta-binomial caller actually run on this cohort's filtered
+   matrix (once P03 finishes) stratified by ancestry, compared against the het-density numbers
+   above.
+5. Carried over from the entry above: chr1-scale P03 timing came in at 24-35 min (within the
+   1hr `h_rt` budget, no change needed) — confirmed this session, no longer open.
+6. `scripts/github/sync_to_github.sh` still doesn't cover `scripts/download/` or
+   `scripts/harmonize_hg38/all_donors/` (carried over, unaddressed again this session).
+
+**If resuming, read:** this entry, then `github/ont_asm_caller/JOURNAL.md`'s 2026-09-16 entries
+for the cross-project confound (it affects both codebases), then check `qstat -u terencew` for
+the still-running QC07/G01-G03 work before trusting anything downstream of them.
+
+---
+
 ## 2026-09-15 — haplotype-assignment confound investigated end-to-end: real, but not fixable from modbed coordinates alone; het-count filter built, validated, and scaled genome-wide
 
 **State at start:** project had 202/229 assemblies + harmonized modbeds downloaded (from the
