@@ -20,8 +20,8 @@ Usage: H02_filtered_locus_matrix.py <sample> <region_bed> <k> <out.tsv>
     baseline every other k is compared against)
 
 Requires H01_call_hap_het_sites.py to have already produced
-  tmp_<chrom>/<sample>/het_in_hap{1,2}.bed
-for every chrom appearing in region_bed, and hmmflagger/<sample>_HMMFlagger.ONT.bed.gz to be
+  data/het_snps/tmp_<chrom>/<sample>/het_in_hap{1,2}.bed
+for every chrom appearing in region_bed, and data/hmmflagger/<sample>_HMMFlagger.ONT.bed.gz to be
 downloaded (see scripts/harmonize_hg38/pilot -- HMMFlagger track fetched directly from the
 hprc-epigenome bucket, same pattern as A01a/b/c downloads).
 
@@ -45,10 +45,10 @@ import pysam
 import chainmap
 
 PROJDIR = Path('/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2')
-MODBED_DIR = PROJDIR / 'modbed'
-CHAIN_DIR = PROJDIR / 'chains'
-HMM_DIR = PROJDIR / 'hmmflagger'
-HERE = Path(__file__).parent
+MODBED_DIR = PROJDIR / 'data' / 'modbed'
+CHAIN_DIR = PROJDIR / 'data' / 'chains'
+HMM_DIR = PROJDIR / 'data' / 'hmmflagger'
+HET_SNPS_DIR = PROJDIR / 'data' / 'het_snps'
 
 
 def load_het_sites(sample, chrom, hap):
@@ -65,7 +65,7 @@ def load_het_sites(sample, chrom, hap):
     here so both sides agree, same fix pattern already used for the modbed/chain mismatch in
     P02_liftover_region_to_hg38.py.
     """
-    path = HERE / f'tmp_{chrom}' / sample / f'het_in_hap{hap}.bed'
+    path = HET_SNPS_DIR / f'tmp_{chrom}' / sample / f'het_in_hap{hap}.bed'
     sites = defaultdict(list)
     with open(path) as fh:
         for line in fh:

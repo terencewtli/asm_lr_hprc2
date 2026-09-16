@@ -34,8 +34,8 @@ from pathlib import Path
 import numpy as np
 
 PROJDIR = Path('/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2')
-MODBED_DIR = PROJDIR / 'modbed'
-CHAIN_DIR = PROJDIR / 'chains'
+MODBED_DIR = PROJDIR / 'data' / 'modbed'
+CHAIN_DIR = PROJDIR / 'data' / 'chains'
 BUCKET = 'https://human-pangenomics.s3.amazonaws.com'
 
 COLUMNS = ['sample', 'n_reads_basecaller', 'median_read_length', 'read_length_n50',

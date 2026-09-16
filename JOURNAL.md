@@ -19,6 +19,98 @@ Entry template:
 
 ---
 
+## 2026-09-16 — data/ reorg broke every hardcoded PROJDIR-relative path; found via H01/H02 audit, fixed, HMMFlagger gap discovered and backfilled, pipeline resubmitted end-to-end
+
+**State at start:** job 14756945 (genome-wide H01, submitted 2026-09-15) had finished. User had
+manually moved its output (`scripts/harmonize_hg38/pilot/tmp_<chrom>/<sample>/het_in_hap{1,2}.bed`)
+to a new home, `data/het_snps/`, as part of a broader reorg that (unnoticed until this session)
+had already relocated `modbed/`, `chains/`, `assemblies/`, `hmmflagger/` from `PROJDIR` root to
+`PROJDIR/data/` sometime this week. User asked whether `P03_build_donor_chrom_matrix.py` /
+`P03_build_donor_chrom_matrix_array.sh`'s paths were still correct.
+
+**Decisions made:**
+- **They weren't — and not just the het-sites path.** `P03_build_donor_chrom_matrix.py` imports
+  `load_het_sites`/`load_hmmflagger`/`parse_locus` from `H02_filtered_locus_matrix.py` rather than
+  defining its own paths, and that file had **four** stale constants left over from before the
+  `data/` reorg: `MODBED_DIR`, `CHAIN_DIR`, `HMM_DIR` (all `PROJDIR/<name>`, should be
+  `PROJDIR/data/<name>`) and `load_het_sites()`'s hardcoded `HERE/tmp_<chrom>/<sample>/...` (`HERE`
+  = the pilot script dir — the pre-move location, not `data/het_snps/` where the files actually
+  are now). Same four-way staleness also present in `H01_call_hap_het_sites.py` (`ASSEMBLY_DIR`,
+  `CHAIN_DIR`, plus its own `HERE`-based output dir), `G01_call_hap_vs_hg38.py` (`ASSEMBLY_DIR`),
+  `P04_read_length_coverage_qc.py` (`MODBED_DIR`, `CHAIN_DIR`), and three download scripts
+  (`A01a_download_hprc2_files.sh`: `MODBED_DIR`, `ASSEMBLY_DIR`; `A01c_download_liftover_chains.sh`
+  + its `test/` variant: `CHAIN_DIR`). Fixed all of it to point at `data/`; `H01`'s output (and
+  `H01_call_hap_het_sites_array.sh`'s matching skip-check) now goes straight to
+  `data/het_snps/tmp_<chrom>/<sample>/`, so a future rerun never needs another manual move.
+- **This wasn't hypothetical — it already caused real, silent-ish data loss in job 14756945.**
+  Checked the 4444-task output: only 4364/4444 (sample, chrom) pairs actually produced
+  `het_in_hap1.bed` (80 empty output dirs). Root-caused via the task logs: **HG02280 and HG00272
+  failed all 22 of their chromosomes** — `samtools faidx`/chain-file `FileNotFoundError` on the
+  exact stale `PROJDIR/assemblies` and `PROJDIR/chains` paths just fixed (44 of the 80 pairs,
+  explained). The remaining ~36 scattered pairs (weighted toward the largest chroms — chr5:8,
+  chr3:8, chr1:7) show no traceback, just truncated minimap2 output — consistent with the
+  `h_rt=1:00:00` timing margin the 2026-09-15 entry already flagged as unverified at chr1-3 scale,
+  not the path bug. **Resubmitted the full H01 array** (job **14764732**) rather than hand-picking
+  80 task IDs — skip-if-exists means the 4364 good pairs no-op instantly, only the 80 gaps
+  actually rerun, now against the corrected paths.
+- **HMMFlagger track: only 1/202 donors had it** (`HG00097`, fetched by hand during pilot
+  development) — `data/hmmflagger/` was effectively empty at the donor-panel scale. Confirmed
+  this is per-donor, not per-chrom (`HMMFlagger.ONT.bed.gz`, one file per sample, same
+  `hprc-epigenome/samples/<SAMPLE>/` layout `A01a` already uses for modbed) — so **202 files
+  needed, not 4444**, and unlike `A01a`'s multi-GB modbed/assembly downloads these are tiny
+  (~3.5KB observed for HG00099). `A01a` never fetched it (it only pulls modbed + assembly) — this
+  was a genuine gap, not a move-related regression. Wrote `A01d_download_hmmflagger.sh` (+
+  `test/` variant, matching `A01a`/`A01c` conventions exactly: manifest-row-indexed SGE array,
+  skip-if-exists, `.partial`-then-`mv`) and submitted it, **job 14764729**.
+- Why this matters more than an ordinary missing-file bug: `load_hmmflagger(sample)` runs
+  **unconditionally**, before P03's per-hap `try/except FileNotFoundError` (that block only
+  wraps `load_het_sites`). So every one of the 4444 P03 tasks would have hit a hard
+  `FileNotFoundError` and failed outright rather than quietly under-counting — loud, not silent,
+  but still would have burned the entire `-tc 60` throttle failing instantly if submitted before
+  this was caught.
+- **Submitted the actual production run**, chained rather than run by hand in sequence: added
+  `A01d_download_hmmflagger` to `P03_build_donor_chrom_matrix_array.sh`'s `-hold_jid` (now
+  `H01_het_sites_array,A01d_download_hmmflagger`) so P03 can't start on a donor before both its
+  het-sites and its HMMFlagger track exist, then submitted P03 itself — **job 14764741**, held
+  until 14764732 and 14764729 both finish.
+
+**Produced:** path fixes in `H01_call_hap_het_sites.py`, `H02_filtered_locus_matrix.py`,
+`G01_call_hap_vs_hg38.py`, `P04_read_length_coverage_qc.py`,
+`scripts/download/A01a_download_hprc2_files.sh`, `scripts/download/A01c_download_liftover_chains.sh`
+(+ `test/` variant), `scripts/harmonize_hg38/all_donors/H01_call_hap_het_sites_array.sh`;
+new `scripts/download/A01d_download_hmmflagger.sh` (+ `test/` variant); updated `-hold_jid` in
+`P03_build_donor_chrom_matrix_array.sh`. Jobs: 14764732 (H01 gap-fill), 14764729 (HMMFlagger
+backfill), 14764741 (production P03, held on both) — all in progress as of this entry.
+
+**Open / next:**
+1. **Check all three jobs next session** — `qstat -u terencew`, then
+   `grep -a real logs/P03_donor_chrom_matrix_array.*` once P03 actually starts running (it's
+   sitting in `hqw` until the two holds clear) to get the first real chr1-scale timing number the
+   2026-09-15 entry flagged as never measured — raise `h_rt` before the full 4444 run if a chr1
+   task is close to the current 1-hour limit, since that's the same margin that plausibly caused
+   this session's ~36 scattered H01 timeouts.
+2. Once P03 finishes, spot-check `results/all_donors/per_sample_chrom/` coverage against the
+   4444-row task list the same way this session did for H01 — confirm no analogous silent gap
+   before treating the matrix as complete.
+3. **The purity/k-filter finding from 2026-09-15 is not a bug and won't be fixed by this
+   pipeline running cleanly** — worth restating here since it's easy to lose track of once the
+   plumbing issues are resolved: `k=1` het-site filtering removes reads that *can't* carry
+   phasing information, but H03 found raising `k` past 1 buys essentially no purity gain (≤0.08
+   change across `k=0..30`), and H04 found only 32.7% of loci are even genuinely bimodal in the
+   first place — the rest of the residual per-read disagreement needs read
+   sequence/genotype information the modbed format doesn't carry, not a better filter. This is a
+   real ceiling to disclose in methods/limitations, not something the genome-wide run will
+   quietly resolve.
+4. `scripts/github/sync_to_github.sh` still doesn't rsync `scripts/harmonize_hg38/` (carried over
+   from 2026-09-15, unaddressed this session too) — all the path fixes above live only in the
+   working dir until that's fixed and run.
+
+**If resuming, read:** this entry, then check job status first (`qstat -u terencew`), then
+`scripts/harmonize_hg38/pilot/H02_filtered_locus_matrix.py` to confirm the path fixes are still
+in place before trusting any P03 output.
+
+---
+
 ## 2026-09-15 — haplotype-assignment confound investigated end-to-end: real, but not fixable from modbed coordinates alone; het-count filter built, validated, and scaled genome-wide
 
 **State at start:** project had 202/229 assemblies + harmonized modbeds downloaded (from the

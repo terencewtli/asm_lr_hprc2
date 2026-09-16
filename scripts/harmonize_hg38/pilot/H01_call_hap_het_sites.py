@@ -23,7 +23,7 @@ proper BED coordinates in EACH haplotype's own coordinate system):
 
 Usage: H01_call_hap_het_sites.py <sample> <hg38_chrom>
 Writes to <outdir>/<sample>_<chrom>_het_in_hap1.bed and *_het_in_hap2.bed
-(outdir = scripts/harmonize_hg38/pilot/tmp_<chrom>/<sample>/)
+(outdir = data/het_snps/tmp_<chrom>/<sample>/)
 """
 import subprocess
 import sys
@@ -32,9 +32,9 @@ from pathlib import Path
 import chainmap
 
 PROJDIR = Path('/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2')
-ASSEMBLY_DIR = PROJDIR / 'assemblies'
-CHAIN_DIR = PROJDIR / 'chains'
-HERE = Path(__file__).parent
+ASSEMBLY_DIR = PROJDIR / 'data' / 'assemblies'
+CHAIN_DIR = PROJDIR / 'data' / 'chains'
+HET_SNPS_DIR = PROJDIR / 'data' / 'het_snps'
 
 SAMTOOLS = '/u/local/apps/samtools/1.15/gcc-4.8.5/bin/samtools'
 MINIMAP2 = '/u/home/t/terencew/bin/minimap2'
@@ -77,7 +77,7 @@ def align_and_call(query_fa, ref_fa, out_paf, out_bed):
 
 def main():
     sample, chrom = sys.argv[1], sys.argv[2]
-    outdir = HERE / f'tmp_{chrom}' / sample
+    outdir = HET_SNPS_DIR / f'tmp_{chrom}' / sample
     outdir.mkdir(parents=True, exist_ok=True)
 
     hap1_contigs = contigs_for_chrom(sample, 1, chrom)

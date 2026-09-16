@@ -32,7 +32,7 @@ import sys
 from pathlib import Path
 
 PROJDIR = Path('/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2')
-ASSEMBLY_DIR = PROJDIR / 'assemblies'
+ASSEMBLY_DIR = PROJDIR / 'data' / 'assemblies'
 HERE = Path(__file__).parent
 
 REF_GENOME = Path('/u/project/cluo/terencew/reference/hg38_igvf/GRCh38.autosome.fa')
