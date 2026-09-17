@@ -19,7 +19,104 @@ Entry template:
 
 ---
 
+## 2026-09-16 — late: "median per-CpG coverage = 1" was a methcounts bug (junk non-CpG rows), NOT real sparsity; true depth ~30x/hap; PMD calls barely change; array range bug fixed; PMD/bigWig/chr20-survey jobs resubmitted
+
+**State at start:** the entry below claimed ONT per-CpG coverage was mean ~10x / median 1 despite
+~32x read depth, and blamed per-call confidence filtering. User didn't believe it (~40-57kb reads
+at ~30x/hap should give ~30x/CpG). Re-checked directly.
+
+**Findings / decisions:**
+- **The entry below's coverage-sparsity conclusion is WRONG — retracted.** Root cause is a bug in
+  `A01a_modbed_to_methcounts.py`: it wrote a row for *every* position that received any call,
+  without checking the position is a CpG in the haplotype's own assembly. ~8% of calls land on
+  non-CpG positions (read errors / mis-assigned reads), each at depth ~1, and those junk rows
+  outnumber real CpGs ~2:1. NA19338 hap1, whole genome, checked against the assembly sequence:
+
+  | methcounts rows | rows | mean depth | median depth |
+  |---|---|---|---|
+  | all (what dnmtools pmd got) | 100,053,255 | 10.5 | 1 |
+  | assembly CpGs | 32,242,772 | **30.1** | **30** |
+  | non-CpG junk | 67,810,483 | 1.2 | 1 |
+
+  chr20 alone: 796,060 CpGs (of 796,116 in the assembly contig; hg38 chr20 has 773,477) at
+  mean/median 28.4/28, plus 1,608,366 junk rows. Assembly has 32,265,084 CpGs total (hg38
+  autosomes: 27,660,298) → 99.93% covered. Read-level: 1,851,047 reads, mean span 57.2kb,
+  105.9Gb over a 3.04Gb assembly = ~35x physical; 9.9 calls/kb of read ≈ the genome's CpG
+  density, so reads carry a call at nearly every CpG they span (no confidence-filter story).
+- **The modbed offset → position convention was already correct** (`start + |offset|`, minus-
+  strand shifted −1): ~90% of calls land on a CG for both strands. The bug was only the missing
+  reference-CpG check.
+- **Fix:** `A01a_modbed_to_methcounts.py` now fetches each contig's assembly sequence and writes
+  only positions where the assembly reads `CG`; dropped rows/calls logged per contig. Output
+  renamed `*.cpg.methcounts.tsv.gz` so the rerun doesn't collide with the old unfiltered
+  `*.methcounts.tsv.gz` (154G, left in place for the user to delete).
+- **The fix does NOT change the NA19338 PMD result.** chr20 hap1 on CpG-only input: 72 PMDs,
+  41.6Mb, **63.6%** of chr20, median 349kb / mean 578kb / max 2.70Mb (old input: 87 PMDs, 42.0Mb,
+  64.2%); old vs new Jaccard **0.946**. Mean methylation inside those PMDs 0.403 vs 0.653 outside
+  (depth 28.7 vs 28.0 — no coverage difference). HG04187 (high global meth) hap1 chr20 still has
+  **0** PMDs. So the "provisional because of coverage sparsity" caveat on PMD numbers no longer
+  applies; the NA19338 60%-of-chr20 result is not a coverage artifact. The diploid-pooling plan
+  from the entry below is unnecessary for its stated purpose (per-hap depth is already ~30x).
+  The `ont_asm_caller` "median per-position read support 0.02" finding may share this junk-row
+  cause — not checked.
+- **Second bug — array range:** A01a/A01c/A02a used `-t 1-404` assuming "202 usable donors = first
+  202 manifest rows". False: 25 of the first 202 rows have no assembly, and 25 donors *with*
+  assemblies sit in rows 203-229 and were never processed (old run covered only 177/202). All
+  arrays now `-t 1-458` (229 rows × 2) and skip missing inputs. 27 manifest donors have no
+  assembly; HG00272 has no chain.
+- **A01c (PMD) and A02a (bigWig) never ran** — jobs 14771405 and 14771527 left no logs or
+  outputs (gone from the queue). So no genome-wide PMD beds or bigWigs existed before this entry.
+- **A02a bigWig fixes** (found testing on chr20): `Path.unlink(missing_ok=)` crashes on the
+  allcools Python 3.7 (every task would have failed after writing the bw); non-autosome rows would
+  make `bedGraphToBigWig` abort against the autosome-only chromsizes; duplicate hg38 starts (two
+  native CpGs lifting to one base) would be rejected. All fixed. chr20 test: 730,580 hg38 CpGs
+  (92% lift rate on CpG-only input — the earlier "66-70%" was measured on junk-inflated input),
+  mean 52.1%.
+- **`dnmtools pmd` resources:** chr20 = 17MB RSS, 21s. A01c `h_rt` raised 1h → 2h for genome-wide.
+- **New chr20 cross-donor survey** (`scripts/call_pmds/chr20_survey/`): A03a per (sample, hap)
+  runs the fixed converter on the chr20 contig, calls PMDs natively, lifts per-CpG values to hg38
+  with an own-PMD flag; A03b uses NA19338's PMDs (CpGs in PMD on both haps) as a reference set
+  and reports every donor's methylation inside vs outside them (tests "are the domains present
+  but under the caller's threshold in high-methylation donors?"), own PMD burden, and
+  hap1-vs-hap2 differences in 10kb bins inside vs outside PMDs, by superpopulation.
+- **LCL provenance (HPRC2 preprint Methods + Supp Table S15):** LCLs from Coriell (NHGRI
+  repository; HG002/HG005 from NIGMS). New R2 lines were expanded from the original expansion
+  lot to 4×10⁸ cells = 5 passages post-establishment/receipt; S15 passage: 170 at p5, others
+  p3-p11, 28 missing; 210 established at Coriell vs 23 externally (external passage counted from
+  receipt). ONT batches differ: R9.4.1 (Circulomics Nanobind extraction, Guppy 6.x 5mC; a few
+  runs 5hmC+5mC) vs R10.4.1 (NEB HMW extraction, two protocol versions, Dorado 0.6 5mC+5hmC);
+  14 samples from HPP partner sites (Tokyo, Human Technopole); 47 HPRC1 samples rebasecalled.
+  No culture timeframe is given.
+
+**Produced:** fixes in `scripts/call_pmds/all_donors/{A01a_modbed_to_methcounts.py,
+A01a_modbed_to_methcounts_array.sh, A01c_pmds_array.sh}`, `scripts/bigwig/A02a_methcounts_to_bigwig{.py,_array.sh}`;
+new `scripts/call_pmds/chr20_survey/{A03a_chr20_pmd_survey.py, A03a_chr20_pmd_survey_array.sh,
+A03b_chr20_pmd_survey_summary.py}`; `sync_to_github.sh` now also mirrors `scripts/call_pmds/`
+and `scripts/bigwig/`. Jobs: **14772521** (A03a chr20 survey, 458), **14772522** (A01a CpG
+methcounts, 458) → **14772523** (A01c genome-wide PMDs, held) and **14772524** (A02a hg38
+bigWigs, held).
+
+**Open / next:**
+1. Run `A03b_chr20_pmd_survey_summary.py` once 14772521 finishes (results in
+   `results/qc/data/chr20_pmd_survey/`).
+2. Once 14772522 finishes, the old unfiltered methcounts can be deleted by the user:
+   `rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?.methcounts.tsv.gz`
+3. Design question for cross-donor comparison: PMDs are called in native coordinates and only
+   the per-CpG values are lifted. Alternative: lift CpG methcounts to hg38 first and call PMDs
+   there (common coordinates/CpG universe, loses ~8% of CpGs that don't lift). Not decided.
+4. QC06/QC10 and the fibroblast Jaccard numbers should be recomputed from the new genome-wide
+   PMD calls (they came from chr20 pilot calls on junk-inflated input, though the chr20 result
+   barely moved).
+
+**If resuming, read:** this entry — it supersedes the coverage-sparsity conclusion in the entry
+directly below.
+
+---
+
 ## 2026-09-16 — same day, still later: PMD coverage sparsity root-caused (real, not a bug), diploid PMD pooling started, all forks converted to qsub/stopped to save tokens
+
+> **CORRECTED by the entry above:** the "median per-CpG coverage = 1" finding in this entry was a
+> methcounts bug (non-CpG junk rows), not a data property. True per-CpG depth is ~30x/hap.
 
 **State at start:** the entry above had the real HMM PMD calls, variance decomposition, and
 bigWig pipeline all landed via forks. User asked to stop using forks (token cost) and convert
