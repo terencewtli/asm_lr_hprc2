@@ -456,13 +456,44 @@ Caveats:
     averaged away across cells, so real allelic differences appear genome-wide. These are true
     haplotype differences but not locus-specific regulation; per-donor calibration (genomic
     control or an Efron-style empirical null) is needed before cross-donor ASM comparisons.
+- **[verified] ASM rate, before and after per-donor calibration** (chr20, 201 donors, ~49,750
+  regions each; ASM = BH q < 0.05 and |Δ| ≥ 0.2):
+
+  | donor group (by λ) | n | median calls (raw) | rate raw | median calls (GC) | rate GC |
+  |---|---|---|---|---|---|
+  | λ < 1.2 (well calibrated) | 70 | 157 | 0.32% | 142 | 0.29% |
+  | 1.2–2 | 69 | 417 | 0.84% | 161 | 0.32% |
+  | 2–3 | 37 | 980 | 1.96% | 101 | 0.20% |
+  | > 3 | 25 | 2,299 | 4.65% | 0 | 0.00% |
+
+  Cohort-wide 144,611 raw calls → 28,903 after genomic control (20% retained). **The best
+  estimate of the true ASM rate is ~0.3% of tested regions**, from the calibrated donors — the
+  raw cohort average (1.45%) is inflation.
+- **[verified] Genomic control preserves real signal up to λ ≈ 6–8, then over-corrects.**
+  Imprinted (Zink) DMRs called before → after GC, genome-wide: HG00097 (λ 0.9) 113→113,
+  NA19338 (1.9) 85→85, HG04187 (2.2) 120→119, HG00099 (3.2) 103→102, NA18508 (6.3) 107→101,
+  HG01150 (8.7) 94→76, **NA20762 (12.9) 91→0**. So GC is safe for the bulk of the cohort and
+  fails only for the most extreme donor.
+- **Recommended handling of clonality/inflation (do NOT exclude by clonality):**
+  - Clonality raises inflation (median λ 2.13 in clonal-like vs 1.25 balanced, p = 2e-4) but is
+    **not sufficient as a filter**: excluding all 35 clonal-like donors still leaves 44 inflated
+    (λ > 2) donors, and 10 of the 20 most inflated donors are male, where XIST gives no measure.
+  - Use **λ per donor** (measurable for everyone) as the QC axis, in tiers: λ < 1.2 (70 donors)
+    as-is; 1.2–3 (106) with genomic control or an empirical null; λ > 3 (25) excluded from
+    genome-wide discovery but usable for targeted/positive-control tests; λ > 8 (NA20762 and a
+    couple of others) excluded outright.
+  - Keep XIST skew as a reported covariate, not a filter; it also only exists for 96 females.
+  - For cross-donor penetrance, prefer recurrence/rank-based statistics over raw per-donor counts.
 - **QC16** (`notebooks/qc/QC16_asm_calibration_qc.ipynb`, job 14780472, held on C06a) is the donor
   QC dashboard: λ_real vs λ_null, inflation inside vs outside domains, per-chromosome λ, sign
   balance, read imbalance, separation fraction, Zink control vs λ, genomic-control recalibration
   (how many calls survive per donor) and donor QC flags.
-- **Donor × CpG matrices are built** (C03a, 44 files): `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz`
-  with union hg38 CpG positions × 402 haplotype columns, storing `n_meth` and `n_total`
-  separately. chr20: 831,782 CpGs × 402, median depth 28.
+- **Donor × CpG matrices are built and whole-genome** (C03a, 44 files = 22 autosomes × 2
+  sources): `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz`, union hg38 CpG positions × 402
+  haplotype columns, storing `n_meth` and `n_total` separately (uint16; 0 total = not covered).
+  **all**: 30,870,511 union CpGs, 17.6 GB. **hetfilt**: 30,844,989 CpGs, 17.5 GB.
+  chr20: 831,782 CpGs × 402, median depth 28. Autosomes only (chrX/Y are not in the hg38
+  bigWig/region set).
 
 ### Review of an external critique (2026-09-17) — what was already answered, what it changed
 
@@ -740,6 +771,11 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (late) — ASM landed, calibration diagnosed, rate estimated
+- True ASM rate ≈ 0.3% of tested regions (calibrated donors); raw cohort mean 1.45% is inflation.
+- Genomic control retains imprinted-DMR detection up to λ≈6-8 and fails at λ=13 (NA20762).
+- Clonality alone is an insufficient filter (male donors, and 44 inflated donors remain); use λ.
 
 ### 2026-09-17 (late) — ASM landed, calibration diagnosed
 - C04a genome-wide merge done (201 donors, ~1.94M regions each, 0.67–0.84% ASM).

@@ -31,12 +31,19 @@ Last updated: 2026-09-17 ~14:30
 | RNA markers + EBV | `results/qc/data/rna_markers_wide.tsv` | 200 donors | complete (R01a); 29 donors have no RNA file |
 | Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 0/202 | **rerunning** (14780503 → G03 14780504); first attempt skipped everything (array skip-check pointed at the old path) |
 
+### ASM donor tiers (chr20 λ, see JOURNAL)
+λ < 1.2: 70 donors (use as-is) · 1.2–2: 69 · 2–3: 37 (genomic control) · > 3: 25 (exclude from
+genome-wide discovery) · > 8: NA20762 + 2 (exclude outright). Table:
+`results/qc/data/qc16/asm_donor_qc_chr20.tsv` once QC16 runs.
+
 ### Donor × CpG matrix format (C03a)
 `results/asm/cpg_matrix/<chrom>.<source>.npz`, source = `all` (every read, from the bigWigs) or
 `hetfilt` (reads spanning ≥1 het site — matches the ASM calls). Arrays:
 `pos` (int64, union of hg38 CpGs seen in any haplotype), `cols` (402 `<sample>_hap<N>` strings),
 `n_meth` and `n_total` (uint16, n_cpg × n_cols; `n_total == 0` means not covered).
-chr20 example: 831,782 union CpGs × 402 haplotypes, median depth 28 where covered.
+Whole-genome: 22 autosome files per source. **all** 30,870,511 union CpGs (17.6 GB);
+**hetfilt** 30,844,989 (17.5 GB). chr20 example: 831,782 union CpGs × 402 haplotypes, median
+depth 28 where covered. No chrX/chrY.
 
 ## Known-stale / do-not-use
 
