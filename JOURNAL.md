@@ -381,6 +381,113 @@ for the two real findings from this entry.
 
 ---
 
+## 2026-09-16 — same day, still later: real HMM PMD caller ported from user's short-read pipeline (revises QC06 substantially), variance-decomposition and bigWig work launched, session-persistence risk identified
+
+**State at start:** the entry above had QC06's threshold-based PMD check and QC09's 15-donor
+chain-gap pilot. User asked to scale QC09 to all 202 donors, port their own short-read WGBS
+PMD-calling pipeline (`scripts/call_pmds/wgbs_template/`) to this project's modbed data, and
+(later in the same session) build a variance-decomposition model and a bigWig export pipeline.
+
+**Decisions made / findings:**
+- **Real HMM PMD caller ported and run — substantially revises QC06's earlier finding.**
+  New pipeline at `scripts/call_pmds/all_donors/` (`A01a_modbed_to_methcounts.sh` →
+  `A01c_pmds.sh`, using `dnmtools sym`/`dnmtools pmd`, jobs **14771403** (methcounts, 404 tasks =
+  202 donors × 2 haps) → **14771405** (PMD calls, held on the former)). Validated on the same 3
+  donors QC06 used (chr20): **NA19338** (global meth 0.523, low-tail) shows real PMDs (87
+  domains, 42.0Mb, 64.2% of chr20 — broadly consistent with QC06's 78.3% threshold estimate) but
+  **HG01981** (median, 0.648) and **HG04187** (high, 0.723) show **zero** real PMDs, vs. QC06's
+  threshold-based 69.1%/22.4%. **QC06's threshold heuristic was too permissive** — the real HMM
+  finds PMDs concentrated in the extreme low-tail donor only, not a smooth gradient across the
+  cohort. QC06's conclusion should be treated as superseded pending a full write-up reconciling
+  the two.
+  - Strand/symmetrization resolved empirically, not assumed: modbed offset sign is fixed by read
+    alignment strand (verified — every `-`-strand read has all-negative offsets). Initially
+    assumed no merge step was needed from a surface reading of the template (its allc source was
+    already pre-merged upstream by methylpy, `*.CGN-Merge.allc.tsv.gz` — that precedent doesn't
+    transfer to modbed) — caught by actually reading `dnmtools pmd -help`, which requires
+    strand-collapsed input, and empirically confirmed the +/- pairing (3803/4255 plus-strand
+    positions had a matching minus-strand call at position+1 in a real 5kb test region).
+  - Deliberately used raw (unfiltered) modbed/methcounts, NOT P03's het-filtered hg38 matrix, and
+    stayed in native per-haplotype assembly coordinates (matching QC06) rather than lifting —
+    the `k≥1` filter would manufacture PMD-like coverage gaps from filtering artifacts, not real
+    biology.
+  - Found and worked around a `dnmtools` bug: `-S`/`-r`/`-p` (summary/posteriors/params outputs)
+    throw an error regardless of argument order on this build; dropped, `-o`'s PMD bed is the
+    only output used.
+- **Global methylation distribution re-examined for "how many donors have PMDs"**: only 1/219
+  donors sits below 0.55 (NA19338 itself), 21/219 below 0.60, bulk (187/219) in 0.60-0.70.
+  Working hypothesis, not yet confirmed: PMDs may concentrate in a small low-tail subset (~21
+  candidates) rather than being spread continuously — pending the full 202-donor array.
+- **Age/passage vs. low-methylation donors, checked directly**: age remains unanswerable (no
+  data anywhere). Passage: **11/21 low-methylation donors are missing passage data entirely,
+  including NA19338 itself** (the one confirmed real PMD-positive donor). Among the 10 with
+  data, mean passage is *lower* (4.60) than the rest of the cohort (4.98), and the full-cohort
+  correlation (n=157) is weak and wrong-signed for the "more passage → more PMD-driven
+  hypomethylation" story (r=0.196, positive, R²=0.038) — consistent with the earlier finding that
+  passage's apparent effect was likely an ancestry-confound artifact, not a real independent
+  driver. Whatever drives the low-tail/PMD donors, it isn't simply culture duration.
+- **User supplied the correct `igvf_pgp` reference path** (`reference/igvf_pgp/start_merged.filt_mcg.sorted.bed.gz`
+  — their own merged fibroblast PMD set) after an earlier session guess at the path was wrong and
+  confirmed not to exist. Launched a fork to compare NA19338's PMDs against it (expects modest
+  overlap, LCL vs. fibroblast, but wants it measured), plus residual-methylation-in-other-donors
+  and standard PMD QC (gene enrichment via `gencode.v43.autosome.dedup.names.bed.gz`, size
+  distribution, genomic coverage) — still running as of this entry.
+- **Variance-decomposition analysis launched**: linear model of cross-donor methylation variance
+  (500bp bins, hg38-lifted) against CpG-island overlap (`cpgIslandExt.hg38.bed`), gene-body
+  overlap, and PMD status (donor-specific, represented as fraction-of-donors-in-PMD per bin) —
+  testing the CpG-island-low-variance / PMD-high-variance hypothesis directly. Still running.
+- **BigWig export pipeline launched**: reasoned through three candidate data sources (raw
+  modbed, the new methcounts files, P03's filtered hg38 matrix) and is using unfiltered
+  methcounts lifted to hg38 via existing chains — same reasoning as the PMD caller, avoiding the
+  het-filter artifact. Still running/validating on the same 3 pilot donors as of this entry.
+- **HPRC2 Hi-C/RNA/Fiber-seq download URLs** (user's future validation interest, explicitly
+  low-priority): confirmed real per-sample file names via direct bucket listing (not assumed) —
+  `hg38.hic` (Hi-C), `expression.{plus,minus}.hg38.bw` (RNA/Kinnex), `fiberseq.PacBio.hap{1,2}.modbed.gz`
+  (chromatin accessibility — **not ATAC-seq, HPRC2 doesn't offer ATAC**, only Fiber-seq, and only
+  for 21/229 samples). Wrote `tsv/meta/hprc2_hic_rna_fiberseq_urls.tsv` (229 rows, pattern-
+  constructed like `A01a`'s existing URLs — not per-sample verified beyond HG00097, some will
+  404 for samples missing that assay).
+- **Session-persistence risk identified**: this session's interactive shell is a `QRLOGIN` job
+  (14764647, `h_rt=24:00:00`, started 05:57:45) — **expires ~05:57 tomorrow**. Several
+  long-running fork computations (QC09's full-202-donor scale-up, parts of the variance-decomp
+  and bigWig work) are running as plain background bash processes in this shell, NOT via `qsub`
+  — they will die if this session expires before they finish. Jobs actually submitted via `qsub`
+  (the PMD array 14771403/14771405, dipcall 14766207/10/13) are safe regardless. Worth converting
+  any interactive-shell long-runner to `qsub` if it won't finish well within the remaining window.
+- **LCL/PMD literature, restated for the record** (already found earlier this session, restated
+  here since asked again): Frontiers in Genetics (10.3389/fgene.2017.00076) and corroborating
+  sources confirm EBV-transformed LCLs specifically (not just cancer generally) reliably produce
+  PMDs — this cohort should be treated as PMD-positive by strong prior, now also confirmed
+  directly in NA19338. Plagnol et al. 2008 (PMC2494943) separately established LCL clonality
+  (≥22% effectively monoclonal) as a distinct confound. No dedicated large-scale curated
+  cross-cell-type PMD atlas was directly verified this session (the user's own fibroblast set at
+  `reference/igvf_pgp` is the concrete curated comparison point in hand) — if a broader curated
+  resource (e.g. a multi-methylome PMD survey) is wanted, that needs a dedicated literature check,
+  not assumed from memory.
+
+**Produced:** `scripts/call_pmds/all_donors/{A01a_modbed_to_methcounts,A01c_pmds}.sh` (+ arrays),
+`tsv/meta/hprc2_hic_rna_fiberseq_urls.tsv`, `results/qc/data/het_site_density_by_superpop.tsv`
+(from the prior entry, referenced here). Jobs: 14771403/14771405 (PMD calling, running),
+QC09 full-scale rerun (in-shell background process, not qsub — at risk, see above), variance-
+decomposition and bigWig forks (running).
+
+**Open / next:**
+1. **Reconcile QC06 vs. the real HMM PMD calls** — QC06's threshold-based conclusion is now
+   superseded for the median/high donors; needs an explicit update or a follow-up note once the
+   full 202-donor HMM run lands.
+2. **Convert at-risk in-shell background processes to `qsub`** if they won't finish inside the
+   ~10.5-hour remaining session window (as of this entry) — real risk of losing partial progress.
+3. Fibroblast-overlap, variance-decomposition, and bigWig forks all still running — check and
+   fold results in next session if not done by session end.
+4. Carried over: rare/private-variant extension via gnomAD (still not built), `sync_to_github.sh`
+   still doesn't cover `scripts/download/`/`scripts/harmonize_hg38/all_donors/`.
+
+**If resuming, read:** this entry first — it has the session-persistence risk and the QC06-vs-
+real-PMD-caller correction, both load-bearing for trusting anything else in this project right
+now.
+
+---
+
 ## 2026-09-15 — haplotype-assignment confound investigated end-to-end: real, but not fixable from modbed coordinates alone; het-count filter built, validated, and scaled genome-wide
 
 **State at start:** project had 202/229 assemblies + harmonized modbeds downloaded (from the
