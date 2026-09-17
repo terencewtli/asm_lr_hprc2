@@ -1,6 +1,12 @@
 # Journal
 
-Distilled project state. **Read this first.** The full session-by-session record (including every
+Chronological record, including corrections and retracted analyses — that history is the point of
+this file, not a distraction: it is why the current results can be trusted.
+
+**For the current findings, read `RESULTS.md` instead** (question-first, validated results only,
+with figures). `PROGRESS.md` has the operational state (job counts, stale data, gotchas).
+
+Distilled project state. The full session-by-session record (including every
 bug, wrong turn and retraction) is in `JOURNAL.archive.md`, date-ordered, verbatim as of
 2026-09-16. Both files live ONLY in this git mirror (since 2026-09-17); edit them here, since
 `sync_to_github.sh` no longer copies them. This file keeps only:

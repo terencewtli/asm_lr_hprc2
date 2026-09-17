@@ -1,9 +1,10 @@
 # PROGRESS — informal running log
 
-Operational companion to `JOURNAL.md` (which holds conclusions). This file is the nitty-gritty:
+Operational companion to `RESULTS.md` (findings) and `JOURNAL.md` (chronology). This file is the nitty-gritty:
 what has actually been produced, how many of x/y tasks finished, what is missing or stale, and
 what a future session must fix before trusting a directory. Update it whenever jobs land; keep
-it terse. Both files live only in this git mirror.
+it terse. `RESULTS.md`, `JOURNAL.md`, `JOURNAL.archive.md` and this file live only in this git
+mirror — edit them here; `sync_to_github.sh` does not copy them from the working directory.
 
 Last updated: 2026-09-17 ~15:00
 
