@@ -64,9 +64,54 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
    - Genome-wide hap-consensus Jaccard median 0.51 (all sizes) vs 0.52 (both sets ≥300kb). The
      Jaccard is held down by LCL PMDs covering more sequence (LCL-constitutive domains: 1.08 Gb,
      median 1.2 Mb; fibroblast: 0.94 Gb, median 304 kb), not by the small fibroblast PMDs.
+   - Both sets ≥300kb, per donor, medians (hg38 autosomes 2.875 Gb):
+
+     | LCL | fibroblast | intersection | union | Jaccard |
+     |---|---|---|---|---|
+     | 1.23 Gb (42.9%) | 0.84 Gb (29.3%) | 717 Mb (24.9%) | 1.36 Gb (47.3%) | 0.52 |
+
+     85% of large-fibroblast-PMD bp is in the donor's large LCL PMDs, while only 58% of LCL bp
+     is in fibroblast PMDs. LCL-constitutive ≥300kb vs fibroblast ≥300kb: Jaccard 0.55,
+     intersection 676 Mb.
    - 65% of LCL-constitutive bins are fibroblast PMDs; 3% of never-domain bins are.
    - Boundaries shared with fibroblasts are gene-enriched (1.13x, permutation p = 0.01);
      LCL-specific recurrent boundaries are not (1.02x, p = 0.17).
+9. **Most between-line variance is in domains, and outside regions move with it linearly**
+   (QC14, 10kb bins, 201 donors).
+   - Share of between-donor variance:
+
+     | bins | share of bins | share of variance | explained by donor state |
+     |---|---|---|---|
+     | constitutive | 41% | 60% | 76% |
+     | rare + variable + common | 28% | 30% | — |
+     | never-PMD | 31% | 9.7% | 47% |
+
+   - Donor never-bin mCG = 0.63 + 0.27 × constitutive-bin mCG (chemistry-adjusted, R² 0.84).
+     No curvature (p = 0.93); the same slope in the deep, middle and shallow ranges
+     (0.30 / 0.26 / 0.33). Outside-domain mCG moves continuously at ~¼ the in-domain rate; there
+     is no threshold where it becomes "normal".
+   - NB: the per-haplotype "outside own PMDs" value (e.g. NA20762 0.60) is lower than
+     never-bin mCG (0.67), because it includes rare/variable bins that are also hypomethylated.
+   - Outside domains, state-linked variance sits in intermediate-mCG intergenic bins: never-bin
+     R²_state is 0.68 for intergenic vs 0.22 for gene bodies (median mCG 0.88), and 0.67–0.72 for
+     bins at 0.6–0.8 mCG vs 0.20 above 0.8. It rises with distance from constitutive domains
+     (0.20 at 10–50kb → 0.40 beyond 5 Mb).
+   - Open: after regressing out domain depth and chemistry, a residual PC1 carries 27.5% of the
+     never-bin variance, and no metadata explains it (superpopulation, sex, passage, era, depth,
+     N50: all R² < 0.05).
+10. **Metadata (QC13).**
+   - Passage: no association (144/155 recorded lines are p5; 46 missing).
+   - Age: not available (Coriell lists "Age: No Data").
+   - Sex: no domain association. It does associate with the unweighted native global mean
+     (R² 0.27), which includes chrX, so that metric shouldn't be used as a covariate.
+   - NA- vs HG-prefixed lines (banking-era proxy): slightly deeper domains in NA lines (partial
+     R² ≈ 0.02 after chemistry, p ≈ 0.03), but NA lines are mostly R1041 (30/45).
+   - Established at Coriell vs externally: nothing.
+   - HPRC2 QC flag: strong, because it marks the 3 deepest donors.
+   - "Expansion" metrics all collapse onto one axis (Spearman 0.97–0.99): depth, fixed-threshold
+     breadth (<0.5, <0.6), relative breadth, and spread into non-constitutive bins. Domains
+     deepen in place and neighbouring variable/rare bins deepen with them; there is no separate
+     boundary-expansion axis. The metagene boundary-spread metric is pending A01f.
 8. **Genetic regulation is not excluded from domains.**
    - HPRC2 promoter mQTLs, among TSS-containing 10kb bins, adjusted for CpG count and TSS count:
      rare/variable-domain bins OR 1.47/1.36, constitutive OR 1.18 (all p < 1e-4, ref = never).
@@ -356,6 +401,26 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
   - Reference tracks: fibroblast PMDs, LCL constitutive domains, PMD frequency, mean mCG.
   - 9 donors' bigWigs weren't written yet at first build. Job 14778024 (U01c, held on A02a +
     A01f) rebuilds both hubs and re-executes QC12.
+- **Gradient hub, revised (2026-09-17 evening):**
+  - Now both chemistries, per user request, to smooth the low end. The two deep outliers
+    (NA20762 0.415, NA19338 0.531) are kept, and the other 18 picks are evenly spaced from
+    0.567 to 0.748 (HG02129). Chemistry is in each track label; files are named by sample.
+  - HG02165 (rank 2 in the first, R941-only build) is 15th lowest globally out of 201
+    (9th lowest in-PMD). HG02129 is highest globally and in constitutive bins (201/201).
+  - Unreferenced files from earlier selections can be deleted:
+    `cd /u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2_gradient/hg38 && rm [0-9][0-9]_*_hap1_mCG.bw HG00290_hap1_mCG.bw HG00642_hap1_mCG.bw HG00658_hap1_mCG.bw HG01928_hap1_mCG.bw HG02004_hap1_mCG.bw HG02273_hap1_mCG.bw HG02809_hap1_mCG.bw HG03583_hap1_mCG.bw NA18952_hap1_mCG.bw NA18976_hap1_mCG.bw NA19036_hap1_mCG.bw NA20346_hap1_mCG.bw NA21093_hap1_mCG.bw NA21144_hap1_mCG.bw`
+    (check `trackDb.txt` first if the selection has changed again).
+- **Why the chr1 centromere / 1q12 is empty in the browser [verified]:** it is an hg38
+  limitation, not coverage.
+  - hg38 chr1:126–142 Mb is 100% N; 121–125 Mb is modeled satellite with CpGs but no chain
+    alignment.
+  - In the assemblies the region is present: HG00097 hap1 chr1 is one 251.6 Mb contig with
+    24.9 Mb between the last p-arm and first q-arm hg38 blocks. That stretch has 26–98K CpGs per
+    2 Mb and ~900–1,050 read starts per 2 Mb (genome average ~1,200), median read span ~37 kb.
+  - NA19338 hap1 chr1 is split into two contigs at the centromere, with ~18 Mb of unaligned
+    satellite at the p-arm contig end, also covered.
+  - This unmapped satellite is a large part of the 18% of CpGs lost in hg38 mapping. A CHM13
+    view (`*_vs_CHM13.chain.gz` exist) would show these regions.
 - **Main hub:**
 
 - Location: `/u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2`, same layout as the lab's other hubs.
@@ -476,6 +541,17 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (night)
+- ≥300kb LCL-vs-fibroblast Jaccard + genome coverage.
+- Gradient hub rebuilt with both chemistries and outlier-aware spacing.
+- chr1 centromere gap diagnosed (hg38, not coverage).
+- QC13 (`notebooks/qc/QC13_pmd_expansion_metadata.ipynb`): PMD expansion metrics vs metadata.
+  Nothing but chemistry and the HPRC2 QC flag; a weak NA-prefix signal; no age data.
+- QC14 (`notebooks/qc/QC14_variance_inside_outside_pmds.ipynb`, genome-wide successor of the
+  chr20 QC11): variance share by domain class, outside-vs-inside coupling (linear, slope 0.27),
+  and where outside-domain state variance lives. Also found an unexplained residual axis.
+- ASM calls 1,401/4,444; bigWigs 402/404 (HG00272 has no chain).
 
 ### 2026-09-17 (evening)
 - User hypothesis confirmed: big fibroblast PMDs are conserved in LCLs (>1 Mb: 90–96% covered),
