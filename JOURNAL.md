@@ -404,7 +404,14 @@ Caveats:
   3,386,109 solo-WCGW sites in hg38 autosomes (WCGW CpG with no other CpG within 35bp).
   NA19338 hap1: constitutive-domain mCG **15.0%** at solo-WCGW vs 36.6% over all CpGs
   (never-PMD 59.5% vs 67.9%), i.e. depth 44.5 vs 31.2 points. Job 14779380 runs all haplotypes.
-- **[verified, chr21 pilot] Variant density is higher in domains** (`B04a`, job 14778700):
+- **[verified, genome-wide] The variant excess in domains is ~82% replication timing.**
+  265,052 bins, 790M SNV calls across ~200 donors. Median SNVs per donor per 10kb: never-PMD
+  11.1 vs constitutive 13.6. The constitutive-vs-never coefficient falls from +0.94 (CpG-adjusted)
+  to **+0.17 after adding RT and LAD (82% attenuation)**; indels attenuate 99%; **SVs show no
+  domain association at all**. SNV density rises monotonically from 11.1 (earliest RT decile) to
+  14.0 (latest). So "instability in PMDs" is the known late-replication mutation-rate effect, not
+  a PMD-specific process — consistent with the literature's replication-timing mechanism.
+- **[superseded by the genome-wide result above; chr21 pilot] Variant density is higher in domains** (`B04a`, job 14778700):
   constitutive bins +17% SNVs per donor vs never-PMD bins (16.1 vs 13.7 per 10kb), +3.5 adjusted
   for CpG/gene content; indels +0.7; SV +0.10. QC15 re-tests this genome-wide **with RT as a
   covariate**, which is the question that matters (is the excess just late replication?).
@@ -442,9 +449,15 @@ Caveats:
 - **[verified] The caller is correctly calibrated; the inflation is biological, not statistical.**
   - chr20 across 201 donors: genomic-inflation λ median 1.54, mean 1.94, **max 13.1**;
     fraction p < 0.05 median 0.154.
-  - Empirical null (C06a: split ONE haplotype's reads in half, same test): for the most inflated
-    donor NA20762, **λ_null = 0.62–0.64** and only 3.1% of p < 0.05, i.e. slightly conservative.
-    So the test itself is fine — the hap1-vs-hap2 differences are real.
+  - Empirical null (C06a: split ONE haplotype's reads in half, same test), **199/202 donors**:
+    λ_null = **0.61–0.71** (median 0.67), fraction p < 0.05 = 0.031–0.039, and **zero donors
+    above 1.1**. The test is uniformly, slightly conservative for every donor — so all of the
+    real-comparison inflation is genuine hap1-vs-hap2 difference, not a statistical artefact.
+  - **Mechanism confirmed by the dispersion QC:** within-haplotype read spread correlates
+    *negatively* with inflation (r = −0.705). Inflated donors' reads agree with each other more
+    within a haplotype while the two haplotypes differ more — the clonality signature (less
+    cell-to-cell averaging), and the same "weird dispersion" seen in an earlier HPRC ASM caller.
+  - Excess (λ_real / λ_null) ranges 1.2–20.8 (median 2.3).
   - λ tracks **donor PMD depth** (p < 1e-4 with chemistry/ancestry in the model) and
     **XIST-skew clonality** (r = 0.40), not chemistry (p = 0.67) or superpopulation (p > 0.2).
   - λ is near-uniform across chromosomes within a donor (NA20762 11.0–14.5; HG00097 0.83–0.95),
@@ -771,6 +784,13 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (late) — variant excess is replication timing; null calibration complete
+- Genome-wide variant density: PMD SNV excess 82% explained by RT/LAD (indels 99%, SVs none).
+- Empirical null across 199 donors: λ_null 0.61–0.71, none above 1.1 — the caller is conservative
+  for everyone; inflation is real allelic difference.
+- Within-haplotype read dispersion correlates negatively with inflation (r = −0.705), confirming
+  the clonality/averaging mechanism.
 
 ### 2026-09-17 (late) — ASM landed, calibration diagnosed, rate estimated
 - True ASM rate ≈ 0.3% of tested regions (calibrated donors); raw cohort mean 1.45% is inflation.

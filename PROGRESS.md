@@ -5,7 +5,7 @@ what has actually been produced, how many of x/y tasks finished, what is missing
 what a future session must fix before trusting a directory. Update it whenever jobs land; keep
 it terse. Both files live only in this git mirror.
 
-Last updated: 2026-09-17 ~14:30
+Last updated: 2026-09-17 ~15:00
 
 ## Output inventory
 
@@ -20,16 +20,16 @@ Last updated: 2026-09-17 ~14:30
 | PMD QC + mQTL + variance | `results/meth_bins/qc_genetics/` | — | complete (B03a) |
 | RT / LAD annotation | `results/meth_bins/annotations/rt_lad_10kb.tsv.gz` | 263,774 bins | complete (B06a) |
 | PMD metagene profiles | `results/pmd_metagene/per_hap/` | 402/402 | complete (A01f) |
-| Solo-WCGW per hap | `results/meth_bins/solo_wcgw/per_hap/` | 181/402 | **running** (B05a, job 14779380) |
-| Variant density per 10kb | `results/meth_bins/variant_density/` | 21/22 | chr22 was node-killed; resubmitted (14780505) |
+| Solo-WCGW per hap | `results/meth_bins/solo_wcgw/per_hap/` | 217/402 | **running** (B05a, job 14779380) |
+| Variant density per 10kb | `results/meth_bins/variant_density/` | 22/22 | complete |
 | ASM calls per (sample, chrom) | `results/asm/calls/` | 4410/4444 | 12 real gaps resubmitted (14780506); 22 are HG00272 (no chain, permanent) |
 | Het-filtered per-CpG counts | `results/asm/cpg/` | 4413 | complete |
 | **Donor × CpG matrices** | `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz` | 44/44 | complete (C03a) |
 | Genome-wide ASM merge | `results/asm/genome/` | 201 donors | complete (C04a) |
-| ASM empirical null (chr20) | `results/asm/null/` | 4/202 | **running** (C06a, job 14780466) |
+| ASM empirical null (chr20) | `results/asm/null/` | 199/202 | complete; summary `results/qc/data/asm_null_vs_real_chr20.tsv` |
 | XIST promoter skew | `results/qc/data/xist_promoter_skew.tsv` | 96 females | complete (M03) |
 | RNA markers + EBV | `results/qc/data/rna_markers_wide.tsv` | 200 donors | complete (R01a); 29 donors have no RNA file |
-| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 0/202 | **rerunning** (14780503 → G03 14780504); first attempt skipped everything (array skip-check pointed at the old path) |
+| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge (G03 14780504) running |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
 λ < 1.2: 70 donors (use as-is) · 1.2–2: 69 · 2–3: 37 (genomic control) · > 3: 25 (exclude from
