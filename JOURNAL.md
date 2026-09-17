@@ -76,7 +76,7 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
    - 65% of LCL-constitutive bins are fibroblast PMDs; 3% of never-domain bins are.
    - Boundaries shared with fibroblasts are gene-enriched (1.13x, permutation p = 0.01);
      LCL-specific recurrent boundaries are not (1.02x, p = 0.17).
-9. **Most between-line variance is in domains, and outside regions move with it linearly**
+8. **Most between-line variance is in domains, and outside regions move with it linearly**
    (QC14, 10kb bins, 201 donors).
    - Share of between-donor variance:
 
@@ -99,7 +99,7 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
    - Open: after regressing out domain depth and chemistry, a residual PC1 carries 27.5% of the
      never-bin variance, and no metadata explains it (superpopulation, sex, passage, era, depth,
      N50: all R² < 0.05).
-10. **Metadata (QC13).**
+9. **Metadata (QC13).**
    - Passage: no association (144/155 recorded lines are p5; 46 missing).
    - Age: not available (Coriell lists "Age: No Data").
    - Sex: no domain association. It does associate with the unweighted native global mean
@@ -112,7 +112,7 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
      breadth (<0.5, <0.6), relative breadth, and spread into non-constitutive bins. Domains
      deepen in place and neighbouring variable/rare bins deepen with them; there is no separate
      boundary-expansion axis. The metagene boundary-spread metric is pending A01f.
-8. **Genetic regulation is not excluded from domains.**
+10. **Genetic regulation is not excluded from domains.**
    - HPRC2 promoter mQTLs, among TSS-containing 10kb bins, adjusted for CpG count and TSS count:
      rare/variable-domain bins OR 1.47/1.36, constitutive OR 1.18 (all p < 1e-4, ref = never).
    - Domain-bin variance is dominated by donor state (R² 0.91), but within-donor hap
