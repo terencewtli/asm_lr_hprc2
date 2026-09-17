@@ -38,8 +38,11 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
      Jaccard median 0.87.
    - NA19338's PMD bins: 65% constitutive, 15% variable, 15% rare. So it has the common
      domains, deeper, plus a set of rarer ones.
-   - The most-methylated donors still show the same domains, just shallowly (chr20 survey), and
-     their genome-wide calls can carry no contrast (HG02129: ~0).
+   - The most-methylated donors still show the same domains, just shallowly.
+     - HG04187: 10kb mCG 0.685 in constitutive bins vs ~0.83 in never-PMD bins.
+     - Its own genome-wide calls have contrast 0.06–0.08.
+     - HG02129's own calls carry no contrast at all (~0), although its constitutive bins are
+       also lower.
 5. **Genome-wide `dnmtools pmd` calls are relative, not a presence/absence phenotype.**
    - Every haplotype gets 1.1–1.9 Gb (median 1.47 Gb; 82% of PMD bp in >1 Mb domains).
    - The inside-vs-outside contrast ranges from −0.005 to 0.36 and tracks global state.
@@ -49,8 +52,18 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
    - Mean |hap1−hap2| in 10kb bins: 0.026 in constitutive domains vs 0.016 in never-domain bins.
    - Domain state is shared by both alleles, consistent with the user's WGBS result, so it is
      not a source of ASM.
-7. **LCL vs fibroblast PMDs overlap only partly.**
-   - Genome-wide hap-consensus Jaccard median 0.51.
+7. **LCL vs fibroblast PMDs overlap only partly, and the overlap is carried by LARGE domains.**
+   - Mean fraction of each fibroblast PMD's bp inside a donor's LCL consensus PMDs, by
+     fibroblast PMD size (QC12):
+
+     | size | <100kb | 100–300kb | 300kb–1Mb | 1–3Mb | >3Mb |
+     |---|---|---|---|---|---|
+     | covered | 0.17 | 0.26 | 0.58 | 0.90 | 0.96 |
+
+   - Fibroblast PMDs over 1 Mb are PMD in ≥95% of donors.
+   - Genome-wide hap-consensus Jaccard median 0.51 (all sizes) vs 0.52 (both sets ≥300kb). The
+     Jaccard is held down by LCL PMDs covering more sequence (LCL-constitutive domains: 1.08 Gb,
+     median 1.2 Mb; fibroblast: 0.94 Gb, median 304 kb), not by the small fibroblast PMDs.
    - 65% of LCL-constitutive bins are fibroblast PMDs; 3% of never-domain bins are.
    - Boundaries shared with fibroblasts are gene-enriched (1.13x, permutation p = 0.01);
      LCL-specific recurrent boundaries are not (1.02x, p = 0.17).
@@ -313,7 +326,37 @@ rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?
 rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_donors/per_sample_chrom
 ```
 
+### PMD metagene + size analyses (2026-09-17)
+
+- A01e (`scripts/call_pmds/all_donors/`) builds hg38 reference sets in
+  `results/pmd_metagene/ref_sets/`, each also as ≥300kb:
+  - lcl_constitutive: 671 domains, 1.08 Gb;
+  - lcl_common_plus;
+  - fibroblast: 1,410;
+  - NA19338 / HG04187 / NA20762 consensus.
+- A01f computes metagene profiles from the per-CpG bigWigs with `pyBigWig.stats(nBins)`: 40
+  scaled body bins, 200kb flanks in 20 bins per side, flank bins overlapping a neighbouring PMD
+  masked. Same design as the igvf YR2 03a–03c notebooks, without window BEDs or tabix.
+  About 1 min per hap. Job 14777714, held on A02a.
+  - HG00097 hap1 test: flank ~71% vs body ~53% on lcl_constitutive_ge300kb; body depth
+    (flank − body) 17.4 there vs 13.1 on fibroblast PMDs.
+- `notebooks/qc/QC12_pmd_size_overlap_and_metagene.ipynb`: size-stratified overlap, continuum
+  scatter, metagene plots by global mCG and by chemistry. Figures in
+  `results/qc/figures/qc12_*`, tables in `results/qc/data/qc12/`. It is re-executed by
+  U01c once all profiles exist.
+
 ### UCSC track hub [verified built]
+
+- **Gradient hub:** `/u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2_gradient`, built by
+  `scripts/ucsc/U01b_build_gradient_hub.py`.
+  - 20 R941 donors' hap1 per-CpG mCG, evenly spaced in call-weighted global mCG (NA19338 0.531
+    → HG02129 0.748), ordered and viridis-coloured. Selection in `hg38/selected_donors.tsv`.
+  - R941 only, to keep chemistry out of the gradient. The low end is sparse: NA19338 is the only
+    R941 donor below 0.60.
+  - Reference tracks: fibroblast PMDs, LCL constitutive domains, PMD frequency, mean mCG.
+  - 9 donors' bigWigs weren't written yet at first build. Job 14778024 (U01c, held on A02a +
+    A01f) rebuilds both hubs and re-executes QC12.
+- **Main hub:**
 
 - Location: `/u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2`, same layout as the lab's other hubs.
   Built by `scripts/ucsc/U01a_build_track_hub.py` (re-runnable), 967 MB.
@@ -433,6 +476,13 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (evening)
+- User hypothesis confirmed: big fibroblast PMDs are conserved in LCLs (>1 Mb: 90–96% covered),
+  small ones mostly aren't. Jaccard is insensitive to the size cut.
+- HG04187 has shallow but present domains.
+- Added PMD reference sets (A01e), bigWig metagene (A01f, job 14777714), QC12 notebook, the
+  gradient hub (U01b), and a held rebuild job (U01c, 14778024).
 
 ### 2026-09-17 (later)
 - Genome-wide B01b/B02a results in.
