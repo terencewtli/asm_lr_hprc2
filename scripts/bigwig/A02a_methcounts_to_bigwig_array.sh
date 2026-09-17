@@ -2,16 +2,15 @@
 #$ -N A02a_methcounts_to_bigwig
 #$ -cwd
 #$ -l h_data=4G,h_rt=1:00:00
-#$ -pe shared 1
+#$ -pe shared 4
 #$ -t 1-458:1
 #$ -tc 60
-#$ -hold_jid A01a_modbed_to_methcounts
 #$ -o /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/logs/A02a_methcounts_to_bigwig.$JOB_ID.$TASK_ID
 #$ -j y
 
 # Per-(sample,hap) hg38 methylation bigWig from A01a's symmetrized methcounts (NOT P03's
 # het-filtered matrix -- see A02a_methcounts_to_bigwig.py's docstring for why). Same 229x2=458
-# indexing as A01a_modbed_to_methcounts_array.sh -- hence -hold_jid on that job's name, so this
+# indexing as A01a_modbed_to_methcounts_array.sh (hold removed 2026-09-17: A01a is complete), so this
 # can be submitted any time and will simply wait.
 #
 # Validated 2026-09-16 on NA19338 (87 real PMDs on chr20 per dnmtools, mean chr20 methylation
@@ -20,7 +19,9 @@
 # positions per haplotype (consistent with this session's chain-gap SV-scale-gap measurements,
 # ~5-6% of genome per haplotype in gapped regions, plus routine small-indel loss).
 #
-# Output: data/pmds/<sample>/<sample>_hap{1,2}.hg38.bw
+# Output: data/pmds/<sample>/<sample>_hap{1,2}.hg38.{meth,depth}.bw
+# 2026-09-17: rewritten to use the vectorized chain mapping (liftOver version timed out at 1h on
+# every task, job 14772524). The 6 old liftOver-based *.hg38.bw files are superseded.
 
 export PATH="/u/home/t/terencew/project-cluo/miniconda3/envs/allcools/bin:$PATH"
 set -euo pipefail
@@ -41,7 +42,8 @@ if [ -z "$SAMPLE" ]; then
 fi
 
 OUTDIR=$PROJDIR/data/pmds/$SAMPLE
-OUT=$OUTDIR/${SAMPLE}_hap${HAP}.hg38.bw
+OUT=$OUTDIR/${SAMPLE}_hap${HAP}.hg38.meth.bw
+OUT_DEPTH=$OUTDIR/${SAMPLE}_hap${HAP}.hg38.depth.bw
 
 echo "$(date): A02a task $ID — $SAMPLE hap$HAP"
 
@@ -51,6 +53,6 @@ if [ -s "$OUT" ]; then
 fi
 
 cd "$PROJDIR/scripts/bigwig"
-time python3 A02a_methcounts_to_bigwig.py "$SAMPLE" "$HAP" "$OUT"
+time python3 A02a_methcounts_to_bigwig.py "$SAMPLE" "$HAP" "$OUT" "$OUT_DEPTH"
 
 echo "$(date): $SAMPLE hap$HAP complete"

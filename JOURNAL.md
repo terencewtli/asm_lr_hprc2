@@ -2,8 +2,10 @@
 
 Distilled project state. **Read this first.** The full session-by-session record (including every
 bug, wrong turn and retraction) is in `JOURNAL.archive.md`, date-ordered, verbatim as of
-2026-09-16. This file keeps only:
+2026-09-16. Both files live ONLY in this git mirror (since 2026-09-17); edit them here, since
+`sync_to_github.sh` no longer copies them. This file keeps only:
 
+0. **Conclusions so far** — the high-level picture, each point backed by the status board.
 1. **Status board** — what's been checked and can be trusted, what's retracted, what's open.
 2. **Planned analyses.**
 3. **Log** — short dated entries (newest first). Put long narrative in the archive, not here.
@@ -11,6 +13,59 @@ bug, wrong turn and retraction) is in `JOURNAL.archive.md`, date-ordered, verbat
 Labels: **[verified]** = rechecked directly against data, with the check described;
 **[reported]** = produced by an earlier session and not independently rechecked since;
 **[retracted]** = shown wrong, kept so nobody reuses it.
+
+---
+
+## 0. Conclusions so far (2026-09-17, genome-wide, ~200 donors)
+
+1. **The ONT data is usable at ~30x per haplotype per CpG** once non-CpG junk calls are removed.
+   All earlier "sparse coverage" statements were a pipeline bug.
+2. **Chemistry (R9.4.1/Guppy vs R10.4.1/Dorado) is real and is not harmonized in the modbeds.**
+   - It shifts call-weighted global mCG by ~4 points (R² 0.21–0.26). Measured as an unweighted
+     per-CpG mean, the shift nearly vanishes (R² 0.015).
+   - The shift is concentrated in low-methylation domains (R10 in-PMD mCG 0.56 vs R9 0.61).
+   - It is PC2 of the 10kb matrix (R² 0.30).
+   - It does NOT move domain *locations*: R9 vs R10 domain-frequency r = 0.994.
+3. **The dominant axis of LCL methylome variation is a continuum of domain hypomethylation, not
+   ancestry.**
+   - PC1 of the raw 10kb matrix explains 82% of variance. PC1 R²: PMD burden 0.59, HPRC2 QC
+     flag 0.22, chemistry 0.19, superpopulation 0.11.
+   - In domain bins, donor global state explains R² ≈ 0.91 of between-donor variance, vs 0.34 in
+     never-domain bins.
+4. **Domain locations are shared across donors ("an extreme version of a common LCL
+   methylome").**
+   - 41% of 10kb bins are constitutive PMD bins (≥90% of donors); donor-vs-donor PMD-bin
+     Jaccard median 0.87.
+   - NA19338's PMD bins: 65% constitutive, 15% variable, 15% rare. So it has the common
+     domains, deeper, plus a set of rarer ones.
+   - The most-methylated donors still show the same domains, just shallowly (chr20 survey), and
+     their genome-wide calls can carry no contrast (HG02129: ~0).
+5. **Genome-wide `dnmtools pmd` calls are relative, not a presence/absence phenotype.**
+   - Every haplotype gets 1.1–1.9 Gb (median 1.47 Gb; 82% of PMD bp in >1 Mb domains).
+   - The inside-vs-outside contrast ranges from −0.005 to 0.36 and tracks global state.
+   - Use continuous measures (domain contrast, per-bin mCG) as phenotypes.
+6. **Haplotypes agree at domains.**
+   - hap1/hap2 PMD-bin Jaccard median 0.91.
+   - Mean |hap1−hap2| in 10kb bins: 0.026 in constitutive domains vs 0.016 in never-domain bins.
+   - Domain state is shared by both alleles, consistent with the user's WGBS result, so it is
+     not a source of ASM.
+7. **LCL vs fibroblast PMDs overlap only partly.**
+   - Genome-wide hap-consensus Jaccard median 0.51.
+   - 65% of LCL-constitutive bins are fibroblast PMDs; 3% of never-domain bins are.
+   - Boundaries shared with fibroblasts are gene-enriched (1.13x, permutation p = 0.01);
+     LCL-specific recurrent boundaries are not (1.02x, p = 0.17).
+8. **Genetic regulation is not excluded from domains.**
+   - HPRC2 promoter mQTLs, among TSS-containing 10kb bins, adjusted for CpG count and TSS count:
+     rare/variable-domain bins OR 1.47/1.36, constitutive OR 1.18 (all p < 1e-4, ref = never).
+   - Domain-bin variance is dominated by donor state (R² 0.91), but within-donor hap
+     differences are larger in absolute terms there (0.00056 vs 0.00021).
+   - Genetic signal in domains has to be read against a large state background. The ASM calls
+     (C02a) will quantify this directly.
+
+Caveats:
+- "Global state" is computed from the same bins, so R²_state is partly circular.
+- mQTL tests only cover promoter bins, and S11 lists significant hits only.
+- All superpopulation contrasts need chemistry adjustment.
 
 ---
 
@@ -189,27 +244,86 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
 - **[reported]** Het-site density is strongly ancestry-structured (R² = 0.917), so raw
   cross-ancestry ASM detection rates are confounded. Documented in `ont_asm_caller` PRIORITIES
   item 8.
-- **[reported]** Post-reorg path bugs were fixed (2026-09-16). P03 production matrix job 14764741
-  is still running.
+- **[retracted] P03 matrix as ASM input.** `results/all_donors/per_sample_chrom/` (4,422 files,
+  166G) came from `H02.parse_locus`, which:
+  - keeps non-CpG junk calls (HG00097 chr20: 1.85M rows per hap vs 730K CpGs);
+  - doesn't merge strands (a minus-strand call sits on the CpG's G);
+  - has no flipped-block correction;
+  - drops read identity, which the read-level test needs.
+  Superseded by C02a; the user can delete the P03 outputs.
+- **[verified] New ASM pipeline** (`scripts/asm/`):
+  - C01a: shared hg38 region table. 2,019,218 CpG clusters (gap ≤500bp, cut at 1kb, ≥5 CpGs;
+    26.1M of 27.7M autosomal CpGs) plus 229 Zink 2018 imprinted DMRs.
+  - C02a, per sample × chromosome:
+    - same read filters as H02 (≥1 het site in the read span, no HMMFlagger overlap);
+    - CpG-checked, strand-merged, flip-corrected calls mapped to hg38;
+    - per-read region fractions, then `ont_asm_caller.test_region_reads` (Welch/Mann-Whitney,
+      conservative of the two), requiring ≥3 calls per read and ≥3 reads per hap;
+    - also writes het-filtered per-CpG counts.
+  - C03a: per-chromosome donor-hap × CpG union matrices in hg38 (het-filtered and all-reads).
+  - C04a: genome-wide merge. Per-donor genome-wide BH; ASM = q < 0.05 and |Δ| ≥ 0.2; region
+    penetrance by chemistry; Zink control by chemistry.
+- **[verified] C02a test, HG00097 chr20:**
+  - 2.3 min, 2.8 GB; 94% of reads pass the het filter.
+  - 49,842 regions tested (median 25 reads per hap); 270 at FDR < 0.05, 192 of them with
+    |Δ| ≥ 0.2.
+  - 11/12 chr20 Zink DMRs called ASM (GNAS cluster |Δ| 0.67–0.91).
+  - CpG output: 730K CpGs per hap, 98.7% on an hg38 CG.
+  - `ont_asm_caller` needs `math.comb` (Python 3.8+); C02a shims it for the Python 3.7 allcools
+    env.
 - **[reported]** Dipcall-style VCFs (G01→G03, jobs 14766207/10/13): validated on 5 donors
   (ts/tv 1.94); full-run completion not rechecked.
 - **[reported]** QC09 chain-gap asymmetry: mean 0.6% of the genome (max 1.43%).
 - **[reported]** Ancestry PCA: PC1 51%, PC2 18.8%. Output is in `reference/1000G/pca/asm_lr_hprc2/`.
 
-### Running jobs (submitted 2026-09-16)
+### Jobs (as of 2026-09-17 ~10:30)
+
+Done:
+- A01a methcounts: 404/404.
+- A01c genome-wide PMDs: 404/404.
+- B01a bins: 401/404. HG00272 has no chain; HG01496 hap2 was node-killed and resubmitted as
+  14777387.
+- B01b/B02a summary (14774195).
+- P03 (superseded).
+
+The first A02a bigWig run (14772524) hit the 1h limit in liftOver on every task (0 useful
+outputs apart from 6 early files). It was rewritten to use the vectorized chain mapping.
 
 | job | what | depends on |
 |---|---|---|
-| 14772522 | A01a CpG-only methcounts, all contigs, 458 tasks | — |
-| 14772523 | A01c genome-wide `dnmtools pmd` (native haplotype coordinates) | 14772522 |
-| 14772524 | A02a per-haplotype hg38 bigWigs (per-CpG % methylation, autosomes) | 14772522 |
-| 14764741 | P03 production donor×chrom ASM matrix | — |
-| 14773897 | B01a genome-wide hg38 10kb bins + hg38 PMD intervals per haplotype (`scripts/meth_bins/`) | A01c |
-| 14774195 | B01b_summary: B01b matrix/PCA/covariates/continuum/domain-frequency + B02a genome-wide boundary genes | B01a |
+| 14777384 | A02a per-hap hg38 bigWigs `*.hg38.{meth,depth}.bw` (5.5 min, 9.8 GB each) | — |
+| 14777387 | B01a rerun, HG01496 hap2 | — |
+| 14777427 | C02a ASM calls, 4,444 sample×chrom tasks (chr1 ≈ 8 min) | — |
+| 14777428 | C03a donor×CpG union matrices per chrom (hetfilt + all) | C02a, A02a |
+| 14777429 | C04a genome-wide ASM merge + Zink/chemistry control | C02a |
 
-The chr20 survey (14772521) and A01a (14772522) are done: 404/404 CpG methcounts. The user can now
-delete the old unfiltered methcounts (154G):
-`rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?.methcounts.tsv.gz`
+**For the user to delete (none of this is used any more):**
+```
+# old unfiltered methcounts (154G)
+rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?.methcounts.tsv.gz
+# temp files left by the timed-out liftOver bigWig run (699G)
+rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*.native.bedGraph \
+   /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*.hg38.bedGraph \
+   /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*.hg38.sorted.bedGraph \
+   /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*.unmapped \
+   /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*.chain
+# 6 liftOver-era bigWigs (1bp offset on flipped blocks; superseded by *.hg38.meth.bw)
+rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?.hg38.bw
+# superseded P03 matrix (166G)
+rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_donors/per_sample_chrom
+```
+
+### UCSC track hub [verified built]
+
+- Location: `/u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2`, same layout as the lab's other hubs.
+  Built by `scripts/ucsc/U01a_build_track_hub.py` (re-runnable), 967 MB.
+- superTrack `LCL_population`: fibroblast PMDs, and 10kb mean mCG / SD / PMD frequency /
+  caller-free low-mCG frequency / PMD-boundary frequency.
+- superTracks `NA19338` and `HG04187` (lowest and highest global mCG): hap1, hap2 and consensus
+  PMDs, plus per-CpG mCG per hap. The per-CpG tracks are added when the script is rerun after
+  A02a finishes.
+- superTrack `LCL_donors_10kb`: all 401 haps at 10kb (hidden by default; blue R941, orange R1041).
+- Per-CpG bigWigs for everyone (~290 GB) were deliberately not copied.
 
 ### Open decisions
 
@@ -289,7 +403,13 @@ delete the old unfiltered methcounts (154G):
   reprogramming PMDs (igvf_pgp) and to gene annotations. Boundary genes are expected to be
   enriched for interesting genes; test genome-wide against matched random windows.
 
-**A–C are implemented genome-wide** in `scripts/meth_bins/`:
+**A–D are run genome-wide** (results summarized in section 0). Their outputs:
+- `results/meth_bins/` (B01b)
+- `results/meth_bins/boundaries/` (B02a)
+- `results/meth_bins/qc_genetics/` (B03a: PMD QC, hap agreement, mQTL-by-domain logit,
+  per-bin variance decomposition)
+
+**A–C scripts** in `scripts/meth_bins/`:
 - B01a: per haplotype.
 - B01b: matrix, PCA (raw and per-donor-centered, 10kb and 50kb), PC~covariate R², continuum
   metrics, domain frequency (own-PMD and caller-free relative definitions, per chemistry),
@@ -313,6 +433,19 @@ delete the old unfiltered methcounts (154G):
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (later)
+- Genome-wide B01b/B02a results in.
+- Found and fixed:
+  - the A02a liftOver timeouts (vectorized mapping, new `*.hg38.{meth,depth}.bw`);
+  - the P03 ASM-input problems (junk calls, unmerged strands, no flip correction, no read
+    identity), replaced by `scripts/asm/` C01a–C04a (tested on HG00097 chr20) and submitted.
+- The QC04 vs B01a global-mCG chemistry discrepancy is a metric difference (call-weighted vs
+  per-CpG mean), not an error.
+- B03a: genome-wide PMD QC, hap agreement, mQTL-by-domain, variance decomposition.
+- Built the UCSC hub. Moved the journal to the mirror only. Added section 0 (conclusions).
+- Pending: Zink imprinted-DMR ASM by chemistry (C04a), bigWigs, CpG matrices, hub per-CpG
+  tracks.
 
 ### 2026-09-17
 - Genome-wide A01c PMD calls cover ~40–56% of every haplotype, so the HMM is relative.
