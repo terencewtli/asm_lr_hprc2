@@ -10,6 +10,9 @@ bug, wrong turn and retraction) is in `JOURNAL.archive.md`, date-ordered, verbat
 2. **Planned analyses.**
 3. **Log** — short dated entries (newest first). Put long narrative in the archive, not here.
 
+`PROGRESS.md` (same directory) is the informal operational log: per-pipeline x/y counts, stale
+directories, recurring gotchas and the next-session checklist.
+
 Labels: **[verified]** = rechecked directly against data, with the check described;
 **[reported]** = produced by an earlier session and not independently rechecked since;
 **[retracted]** = shown wrong, kept so nobody reuses it.
@@ -426,6 +429,41 @@ Caveats:
   concentrated in domains and whether it looks genetic (recurrent across donors, mQTL-linked) or
   stochastic (donor-private), plus whether per-donor ASM yield tracks domain depth.
 
+### ASM results and calibration [verified 2026-09-17]
+
+- **Genome-wide ASM calls landed** (C02a 4,410/4,444 tasks; C04a merge over 201 donors).
+  Per donor ~1.94M regions tested, median **0.67% (R941) / 0.84% (R1041)** called ASM
+  (q < 0.05 and |Δ| ≥ 0.2).
+- **Imprinted-DMR positive control (Zink 2018, 229 DMRs), by chemistry:** detection 42.9% (R941)
+  vs 45.2% (R1041), mean |Δ| 0.245 vs 0.271 (Mann-Whitney p = 1e-4 / 1e-5). Chemistry shifts
+  effect sizes slightly; it is not the main ASM-yield driver.
+- **Raw ASM yield differs ~4x by ancestry** (AFR 1.42% vs EAS 0.37%) — but see calibration: after
+  donor-level inflation is accounted for, superpopulation is no longer significant.
+- **[verified] The caller is correctly calibrated; the inflation is biological, not statistical.**
+  - chr20 across 201 donors: genomic-inflation λ median 1.54, mean 1.94, **max 13.1**;
+    fraction p < 0.05 median 0.154.
+  - Empirical null (C06a: split ONE haplotype's reads in half, same test): for the most inflated
+    donor NA20762, **λ_null = 0.62–0.64** and only 3.1% of p < 0.05, i.e. slightly conservative.
+    So the test itself is fine — the hap1-vs-hap2 differences are real.
+  - λ tracks **donor PMD depth** (p < 1e-4 with chemistry/ancestry in the model) and
+    **XIST-skew clonality** (r = 0.40), not chemistry (p = 0.67) or superpopulation (p > 0.2).
+  - λ is near-uniform across chromosomes within a donor (NA20762 11.0–14.5; HG00097 0.83–0.95),
+    so it is not aneuploidy or LOH.
+  - **Excluding PMD-overlapping calls would NOT fix it**: λ outside domains is nearly as high
+    (NA20762 10.2 vs 14.6 inside; NA19338 is higher outside, 2.4 vs 1.7). It is a genome-wide
+    donor-level property.
+  - Interpretation: in clonal / PMD-deep lines, the two alleles' methylation states are not
+    averaged away across cells, so real allelic differences appear genome-wide. These are true
+    haplotype differences but not locus-specific regulation; per-donor calibration (genomic
+    control or an Efron-style empirical null) is needed before cross-donor ASM comparisons.
+- **QC16** (`notebooks/qc/QC16_asm_calibration_qc.ipynb`, job 14780472, held on C06a) is the donor
+  QC dashboard: λ_real vs λ_null, inflation inside vs outside domains, per-chromosome λ, sign
+  balance, read imbalance, separation fraction, Zink control vs λ, genomic-control recalibration
+  (how many calls survive per donor) and donor QC flags.
+- **Donor × CpG matrices are built** (C03a, 44 files): `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz`
+  with union hg38 CpG positions × 402 haplotype columns, storing `n_meth` and `n_total`
+  separately. chr20: 831,782 CpGs × 402, median depth 28.
+
 ### Review of an external critique (2026-09-17) — what was already answered, what it changed
 
 The critique was written against an earlier journal state (chr20-only PMD results). Checked
@@ -702,6 +740,17 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (late) — ASM landed, calibration diagnosed
+- C04a genome-wide merge done (201 donors, ~1.94M regions each, 0.67–0.84% ASM).
+- chr20 spot check found λ up to 13; empirical null (C06a) shows the test is conservative, so the
+  excess is real allelic asymmetry, driven by PMD depth and clonality, genome-wide (not PMD-only,
+  not chromosome-specific).
+- Donor × CpG matrices (union CpGs, n_meth + n_total, all + het-filtered) complete.
+- Added `PROGRESS.md` (informal x/y job log, stale-data list, gotchas).
+- Fixed: G02 array skip-check pointed at the old path so the genome-wide VCF rebuild skipped
+  everything (resubmitted 14780503/504); chr22 variant density resubmitted; 12 missing ASM tasks
+  resubmitted.
 
 ### 2026-09-17 (night) — critique reviewed against data
 - Gradient is smooth/unimodal, every donor has PMDs (1.1–1.9 Gb): the "PMD-positive vs negative"
