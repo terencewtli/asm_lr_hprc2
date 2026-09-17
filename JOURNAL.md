@@ -386,6 +386,46 @@ Caveats:
   mutation density, rather than PMDs causing instability. LCL-specific PMD features are
   catalogued in Salhab 2018 (195 methylomes).
 
+### Mechanism, clock, instability, clonality (2026-09-17 evening, all five follow-ups launched)
+
+- **[verified] Replication timing explains the domain map.** `B06a_rt_lad_annotation.py` lifts
+  ENCODE/UW Repli-seq wavelet signal for **GM12878** (an LCL — matched cell type) and the UCSC
+  laminB1 LAD track (Guelen, fibroblast — the standard cLAD set, not LCL) from hg19 to hg38 10kb
+  bins (263,774 bins).
+  - Spearman(domain frequency, RT) = **−0.824**; Spearman(mean mCG, RT) = 0.515.
+  - Latest-replicating decile: 99.2% constitutive-domain bins, 62% LAD, mean mCG 0.546.
+    Earliest decile: 0.3% constitutive, 5% LAD, mean mCG 0.742.
+  - LAD fraction by class: never 0.13 → constitutive 0.61.
+  - This is the mechanism the literature predicts, measured in our own data.
+- **[verified] Solo-WCGW sharpens the phenotype** (`B05a_solo_wcgw.py`, Zhou 2018 mitotic clock).
+  3,386,109 solo-WCGW sites in hg38 autosomes (WCGW CpG with no other CpG within 35bp).
+  NA19338 hap1: constitutive-domain mCG **15.0%** at solo-WCGW vs 36.6% over all CpGs
+  (never-PMD 59.5% vs 67.9%), i.e. depth 44.5 vs 31.2 points. Job 14779380 runs all haplotypes.
+- **[verified, chr21 pilot] Variant density is higher in domains** (`B04a`, job 14778700):
+  constitutive bins +17% SNVs per donor vs never-PMD bins (16.1 vs 13.7 per 10kb), +3.5 adjusted
+  for CpG/gene content; indels +0.7; SV +0.10. QC15 re-tests this genome-wide **with RT as a
+  covariate**, which is the question that matters (is the excess just late replication?).
+- **[verified] XIST promoter skew now gives real signal** (`scripts/qsub/M03_xist_promoter_skew.py`,
+  job 14779488). QC05's whole-gene window gave skew ~0.037; the promoter CpG island gives
+  HG00097 0.73/0.29 (skew 0.43) and NA19338 0.57/0.21 (skew 0.36).
+  - The window was placed empirically (CpG density peaks TSS−1500→TSS, ~49 CpGs/1.5kb): the local
+    `cpgIslandExt.hg38.bed` annotates no island at XIST and its chrX entries look unreliable
+    there, while gencode v43 puts XIST at chrX:73,820,649-73,852,723 (−).
+- **[verified] RNA marker panel for 200 donors** (`scripts/rna/R01a_rna_markers.py`): HPRC2 Kinnex
+  `expression.{plus,minus}.hg38.bw` read **remotely** (no download), 26 genes covering
+  proliferation, plasmablast, naive/memory B, activation, senescence and housekeeping, normalised
+  to ppm of each donor's total stranded signal.
+  - Gotcha: `pyBigWig.stats` must be called with `exact=True`; the default zoom-level
+    approximation was off by >10⁶-fold on longer genes (ACTB: −0.33 vs −149,115,297).
+- **Genome-wide per-donor VCFs rebuilding**: G02/G03 now write to `data/vcf/per_donor_gw/` and
+  `data/vcf/cohort_gw/` (jobs 14779451/14779452), leaving the stale chr21-only outputs untouched.
+- **QC15** (`notebooks/qc/QC15_mechanism_clock_instability.ipynb`, job 14779515, held) ties these
+  together: RT/LAD vs domains, variant density with RT adjustment, solo-WCGW vs all-CpG depth and
+  its chemistry sensitivity, and the QC14 residual axis vs XIST skew and RNA state.
+- **C05a** (`scripts/asm/C05a_asm_by_domain.py`, job 14779512, held on C04a) asks whether ASM is
+  concentrated in domains and whether it looks genetic (recurrent across donors, mQTL-linked) or
+  stochastic (donor-private), plus whether per-donor ASM yield tracks domain depth.
+
 ### Jobs (as of 2026-09-17 ~10:30)
 
 Done:
@@ -609,6 +649,16 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (late evening) — all five PMD follow-ups launched
+- RT/LAD annotation built; domain frequency vs replication timing Spearman −0.82 (mechanism
+  confirmed in our data).
+- Solo-WCGW sites annotated (3.39M) and per-haplotype job running; pilot shows much deeper
+  domain hypomethylation (15% vs 37%).
+- Variant-density array running; chr21 pilot shows +17% SNVs in domains.
+- XIST promoter skew fixed and running; RNA marker panel done for 200 donors (remote bigWig).
+- G02/G03 rebuilding genome-wide per-donor VCFs.
+- QC15 and C05a written and held on their inputs.
 
 ### 2026-09-17 (night)
 - ≥300kb LCL-vs-fibroblast Jaccard + genome coverage.
