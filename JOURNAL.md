@@ -334,6 +334,58 @@ Caveats:
 - **[reported]** QC09 chain-gap asymmetry: mean 0.6% of the genome (max 1.43%).
 - **[reported]** Ancestry PCA: PC1 51%, PC2 18.8%. Output is in `reference/1000G/pca/asm_lr_hprc2/`.
 
+### PMD definition — what "constitutive" means, and alternatives [verified 2026-09-17]
+
+- Current definition: a 10kb bin is **constitutive** if ≥90% of the ~200 donors have it inside
+  their own genome-wide `dnmtools pmd` calls (`freq_pmd ≥ 0.9`, B01b). 107,505 bins = 1.08 Gb.
+- Alternatives compared (Jaccard vs the current set; donor-level domain depth from each):
+
+  | definition | Gb | Jaccard | corr of donor depth with current |
+  |---|---|---|---|
+  | freq ≥ 0.9 (current) | 1.08 | 1.00 | 1.00 |
+  | freq ≥ 0.8 | 1.15 | 0.94 | — |
+  | PMD in all 5 deepest donors | 1.35 | 0.77 | 0.999 |
+  | NA20762 (deepest donor) alone | 1.66 | 0.64 | — |
+  | NA19338 alone | 1.64 | 0.65 | — |
+  | caller-free: mean mCG < 0.70 | 1.76 | 0.59 | 0.990 |
+
+- **Every definition gives essentially the same per-donor phenotype (r ≥ 0.99)**, so conclusions
+  about the continuum don't depend on this choice.
+- Using the lowest-methylation donors' own PMDs is reasonable (the caller is most reliable where
+  contrast is high) but their sets are ~50% larger and include donor-private low regions; the two
+  deepest are also the HPRC2-QC-flagged donors. Recommended: keep the frequency-based consensus
+  as primary, and use "PMD in all 5 deepest donors" as a maximal-extent sensitivity set.
+- A caller-free threshold on mean mCG gives the largest apparent contrast (0.26 vs 0.15) but is
+  partly circular (bins are selected for being low in the same data); only use it defined on
+  held-out donors.
+
+### Genetic variation and PMDs [in progress 2026-09-17]
+
+- **HPRC2 promoter mQTLs are not depleted in domains** (done, section 0 item 10): among
+  TSS-containing bins, adjusted for CpG and TSS count, rare/variable-domain bins OR 1.47/1.36 and
+  constitutive OR 1.18 vs never-PMD (p < 1e-4). Limited to promoters and to published
+  significant hits.
+- **Variant density per 10kb bin** (`B04a_variant_density.py`, job 14778700): SNV / indel /
+  ≥50bp-SV counts per donor per bin from G01's per-chrom assembly-vs-hg38 diploid VCFs.
+  - chr21 pilot (201 donors): constitutive bins have ~17% more SNVs per donor than never-PMD
+    bins (median 16.1 vs 13.7 per 10kb), +3.5 after adjusting for CpG count and gene content;
+    indels +0.7; SV +0.10 per bin (median 0 in both).
+  - This is germline divergence from hg38, i.e. the known late-replication mutation-rate effect,
+    NOT somatic instability in these lines.
+- **[verified] The merged per-donor VCFs in `data/vcf/per_donor/` are chr21-only** — G02 ran
+  while the G01 array was still going and it tolerates partial chromosome sets. The full
+  per-chrom output does exist (`data/vcf_tmp/tmp_<chrom>/<sample>/hap_vs_hg38/diploid.vcf.gz`,
+  199–201 donors per chrom). G02/G03 need rerunning (to new filenames) before any cohort VCF is
+  used. `data/vcf_tmp` is 1.9 TB, mostly per-chrom `hap1.fa`/`hap2.fa`/`chr*.fa` copies and
+  uncompressed `diploid.vcf` — a cleanup candidate once G02/G03 are rerun.
+- **Literature expectation** (search 2026-09-17): PMD hypomethylation tracks cumulative cell
+  divisions — methylation loss at late-replicating, lamina-associated domains scales with
+  population doublings and stops when replication is blocked (Zhou 2018 Nat Genet; Endicott 2022
+  Nat Commun). In cancer, PMD depth correlates with somatic mutation density. So the expected
+  relationship is: replication timing / mitotic history drives both hypomethylation and elevated
+  mutation density, rather than PMDs causing instability. LCL-specific PMD features are
+  catalogued in Salhab 2018 (195 methylomes).
+
 ### Jobs (as of 2026-09-17 ~10:30)
 
 Done:
@@ -532,6 +584,22 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 - With our own data: per-bin between-donor variance decomposed into genetic (het-site/ASM-based,
   via P03) vs global-state (regression on donor global methylation) components, by domain
   class. Predicted: PMD variance is dominated by donor state, CGI/promoter variance by genetics.
+
+**Next steps for the PMD arm (recommended order, 2026-09-17):**
+1. **Solo-WCGW mitotic clock.** Zhou 2018's sharpest PMD phenotype is mCG at solo-WCGW CpGs
+   (a W-C-G-W CpG with no other CpG within 35bp). Cheap here: annotate them from hg38, recompute
+   per-donor domain depth on that subset, and check whether it tightens the continuum and its
+   correlation with anything (it is the standard proxy for cumulative divisions).
+2. **Replication timing / LAD overlap.** Public LCL (GM12878) Repli-seq and LADs are the direct
+   test of the mechanism, and would explain both the domain map and the SNV-density result.
+3. **Finish the variant work**: genome-wide B04a, then rerun G02/G03 for genome-wide per-donor
+   VCFs, and ask whether domain depth associates with a donor's own variant burden.
+4. **ASM inside domains** (needs C02a/C04a): domains are where cross-donor variance lives, so
+   the interesting question is whether allelic asymmetry is also concentrated there, and whether
+   ASM in domains is genetic (mQTL-like) or stochastic/epigenetic drift.
+5. **Explain the residual axis** from QC14 (27.5% of outside-domain variance, no metadata
+   correlate): candidates are LCL clonality (the XIST/XCI metric once fixed to the promoter),
+   EBV copy number, and B-cell differentiation state from the Kinnex RNA.
 
 **Also pending:**
 - Genome-wide version of the chr20 boundary/gene analysis (A03d) once 14772523 lands.
