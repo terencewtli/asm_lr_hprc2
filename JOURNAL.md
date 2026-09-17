@@ -271,6 +271,116 @@ the still-running QC07/G01-G03 work before trusting anything downstream of them.
 
 ---
 
+## 2026-09-16 — same day, later still: PMDs confirmed directly in this data, haplotype-asymmetry checks (corrected), read-length/HPRC2-supp/reference-bias/gnomAD questions answered
+
+**State at start:** the entry above had just found and documented the ancestry-driven het-site
+density confound. This entry covers the follow-up QC work and conceptual questions from the
+rest of the session.
+
+**Decisions made / findings:**
+- **ONT read length**: no need to recompute — already in HPRC2's own Supp Table S6
+  (`results/qc/data/supp_seq_qc.csv`, `read_N50_ont`). Median N50 81.4kb, range 33.6–115.3kb.
+  Unlike het-site density, **read length shows minimal ancestry stratification** (AFR 84.2kb to
+  AMR 79.2kb, ~6% spread) — reassuring that this particular technical variable isn't feeding the
+  ancestry confound the way variant density is. R1041 chemistry slightly longer than R941
+  (83.5kb vs 80.5kb median), already tracked elsewhere in this project's docs.
+- **Full HPRC2 supplementary xlsx inventory** (22 tables, `reference/hprc2/hprc2_supp.xlsx`) —
+  checked directly rather than assumed. **S10/S11 (the var-CpG/promoter-mQTL tables) have no
+  superpopulation or population column at all** — both are pooled across all donors. So a
+  superpopulation-stratified var-CpG analysis is NOT recoverable from HPRC2's own published
+  tables; it would have to be built from scratch (join S11's lead-variant positions against our
+  own per-superpopulation methylation data, or derive fresh from the G01-G03 VCFs).
+- **Reference bias / WASP discussion** (conceptual, no new code): this project's per-haplotype
+  own-assembly mapping design (hap1 reads → hap1's own assembly, hap2 reads → hap2's own
+  assembly) structurally avoids the classical reference-allele-favoring bias WASP corrects for,
+  since neither haplotype plays the role of "the reference" the other is penalized against.
+  H01/H02's `k≥1` het-site filter is the structural analog of WASP's read-remapping check —
+  "only trust reads whose haplotype provenance is actually verifiable" — just implemented via
+  differentiating-site presence instead of allele-flip-and-remap. Residual concerns, not
+  eliminated by this design: liftover completeness can still differ by haplotype (see chain-gap
+  findings below), and HMMFlagger's assembly-reliability exclusion plays an analogous
+  "don't trust unreliable regions" role.
+- **gnomAD**: confirmed no local copy exists anywhere under `/u/project/cluo` (checked directly).
+  Decided against bulk-downloading it — full site VCFs run hundreds of GB to low TB, and the
+  filesystem is already ~95% full. Recommended approach for the rare-variant follow-up: query
+  gnomAD's public BigQuery dataset or its GCS-hosted site VCFs by region (remote, no local
+  storage) once there's a concrete het-site position list to look up — `bq`/`gcloud`/`gsutil` are
+  already installed and authenticated in this environment. gnomAD is the right AF source
+  specifically for rare/common classification (much larger per-ancestry N than 1000G); 1000G/NYGC
+  remains right for PCA/LD (needs named individual-level genotypes gnomAD doesn't publish).
+- **PMDs — confirmed directly in this data, not just the literature prior.** Real executed check
+  (`notebooks/qc/QC06_pmd_windowed_methylation.ipynb`, replacing the earlier unexecuted draft),
+  chr20, 3 donors spanning the global-methylation range, 20kb windows with a CpG-density filter
+  (barely binding — median 800-900 calls/window, this cohort's ONT coverage is dense enough) and
+  real segmentation (≥5 consecutive low-methylation windows = domain, explicitly excluding
+  single-window CpG-island/promoter dips):
+
+  | donor (global meth) | % of chr20 in PMD-like domains | largest domain |
+  |---|---|---|
+  | NA19338 (0.523, low tail) | **78.3%** | up to 4.36 Mb |
+  | HG01981 (0.648, median) | 69.1% | up to 4.72 Mb |
+  | HG04187 (0.723, high) | **22.4%** | up to 900 kb |
+
+  The low-global-methylation donor shows both more domain coverage AND larger individual domains
+  than the high-methylation donor — the actual PMD signature (large, sustained low/intermediate
+  domains), not just a uniformly shifted mean. This meaningfully raises confidence beyond the
+  literature prior alone. Caveat: single chromosome, 3 donors, threshold-based (not HMM)
+  segmentation — exact percentages are threshold-sensitive, the donor-to-donor gradient is not.
+- **Haplotype-asymmetry checks** (`notebooks/qc/QC09_haplotype_asymmetry_chain_gaps.ipynb`, 15
+  donors, 3/superpopulation), using existing chain files — no new alignment needed:
+  - SV-scale (≥50bp) gaps: mean **5.75% of the genome** sits in gapped/structurally-divergent
+    regions per haplotype (range 4.49-6.90%). AFR haplotypes average ~9% more SV-scale gaps than
+    EUR — same direction as the het-SNP density finding, much smaller magnitude.
+  - Within-donor hap1-vs-hap2 asymmetry in *total gapped bases* averages 10.3% (up to 25.9%,
+    HG01891) — but that 10.3%/25.9% is a **relative** difference between two already-modest
+    (~5-6%-of-genome) quantities, not a fraction of the genome. **Re-expressed as % of genome,
+    the actual hap1-vs-hap2 imbalance is much smaller: mean 0.6%, max 1.43%** (HG00438) and 1.34%
+    (HG01891) — caught and corrected this session after the first summary conflated the two
+    denominators; worth remembering when this number gets cited again.
+  - Post-liftover CpG-count balance (8 donors with available P03 output — all EUR/EAS/AMR, P03
+    hadn't reached AFR/SAS yet): tiny, 0.07-0.28% hap1-vs-hap2 difference, essentially at parity.
+  - Cross-check: correlation between a donor's chain-gap asymmetry and its post-liftover CpG
+    imbalance is **-0.36 (n=8)** — weak, wrong-signed, no support for a detectable downstream
+    effect. **Incomplete, not conclusive**: this is only tested in EUR/EAS/AMR, exactly where the
+    asymmetry is smallest — needs rerunning once P03 reaches AFR/SAS (where HG01891's 25.9%/1.34%
+    outlier lives).
+- **Dipcall pipeline (G01→G02→G03) confirmed working**, no further findings beyond the earlier
+  validation (5 donors, ts/tv=1.94) — full-scale run (jobs 14766207/10/13) still in progress.
+- **QC07 (SNP/CpG landscape + CpG architecture) still running as of this entry** — genuinely
+  long-running (multiple hours), no results yet to report.
+- **User request for next session**: run an HMM-based PMD caller (upgrade from this session's
+  threshold/windowed-segmentation first pass in QC06 — a real HMM, e.g. MethylSeekR-style or
+  methylpy's PMD caller, would replace the "≥5 consecutive low-methylation windows" heuristic
+  with a proper state-based segmentation) and generate BigWig files from these ONT methylation
+  calls for genome-browser visualization. User will supply their own existing short-read BigWig
+  generation scripts next session to adapt rather than building this from scratch.
+
+**Produced:** `notebooks/qc/QC06_pmd_windowed_methylation.ipynb` (replaces DRAFT),
+`QC09_haplotype_asymmetry_chain_gaps.ipynb`, `results/qc/data/{qc06_pmd_domains_chr20_pilot,
+chain_gaps_raw, chain_gap_summary_all_gaps, chain_gap_summary_sv_ge50bp,
+chain_gap_summary_large_ge1kb, postliftover_hap_balance}.tsv`,
+`results/qc/figures/qc06_pmd_windowed_methylation_tracks.png`.
+
+**Open / next:**
+1. **QC07 still running** — the direct input to per-ancestry CpG-gain/loss and corrected
+   CpG-disrupting-SNP rate; check on it first when resuming.
+2. **Post-liftover balance check needs AFR/SAS coverage** once P03 progresses further — the
+   current "no connection between chain-gap asymmetry and CpG imbalance" finding is untested in
+   exactly the population where it matters most.
+3. **HMM PMD caller + BigWig generation** — next session, once user supplies their existing
+   short-read scripts to adapt.
+4. Rare/private-variant extension (per-donor private CpG/SNP fraction, corrected common-vs-rare
+   het-site classification via gnomAD) — still planned, not yet built, blocked on QC07/QC08
+   scope and the gnomAD query approach above.
+5. Carried over: `scripts/github/sync_to_github.sh` still doesn't cover `scripts/download/` or
+   `scripts/harmonize_hg38/all_donors/`.
+
+**If resuming, read:** this entry, then check `qstat -u terencew` for QC07/G01-G03 status, then
+`notebooks/qc/QC06_pmd_windowed_methylation.ipynb` and `QC09_haplotype_asymmetry_chain_gaps.ipynb`
+for the two real findings from this entry.
+
+---
+
 ## 2026-09-15 — haplotype-assignment confound investigated end-to-end: real, but not fixable from modbed coordinates alone; het-count filter built, validated, and scaled genome-wide
 
 **State at start:** project had 202/229 assemblies + harmonized modbeds downloaded (from the
