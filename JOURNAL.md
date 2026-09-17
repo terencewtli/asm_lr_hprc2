@@ -487,6 +487,31 @@ Caveats:
   NA19338 (1.9) 85→85, HG04187 (2.2) 120→119, HG00099 (3.2) 103→102, NA18508 (6.3) 107→101,
   HG01150 (8.7) 94→76, **NA20762 (12.9) 91→0**. So GC is safe for the bulk of the cohort and
   fails only for the most extreme donor.
+- **[verified] What the rate means, in comparable units, and what the loci look like.**
+  The 0.3% figure is **per donor, per tested REGION** (regions = CpG clusters, median 852 bp /
+  10 CpGs; 2,019,218 regions covering 26.1M of 27.7M autosomal CpGs). Restricted to the 70
+  well-calibrated donors (chr20 λ < 1.2):
+  - **median 4,077 ASM regions per donor = 0.21% of tested regions = 0.23% of tested CpGs**
+    (60,178 CpGs), median |Δ| 0.26.
+  - ASM regions are slightly smaller and CpG-poorer than average (818 bp / 7 CpGs).
+  - **Union across the 70 donors: 119,926 distinct regions (5.9% of all tested).**
+  - **Recurrence is the important structure:** 66% of union regions are called in exactly ONE
+    donor, 26% in 2-5, 7% in 6-20, 1% in >20; only **407 regions are called in >50% of donors**
+    and **239 in ≥90%**.
+  - **The ≥90% set is imprinting**: 183/239 (77%) lie within 10 kb of a Zink 2018 imprinted DMR;
+    they collapse to ~41 clusters, concentrated on chr15 (108 regions, SNRPN/PWS), chr20 (35,
+    GNAS), chr2 (27), chr11 (14, H19/IGF2), chr7 (11, MEST/GRB10), chr19 (9). Median 910 bp /
+    16 CpGs. This is a clean positive control that the caller recovers known biology.
+- **[verified] Literature comparison (deCODE, the closest long-read precedent).** From
+  `asm_lr/md/20260905.progress.md`: deCODE (Nat Genet 2024, 7,179 Icelanders, ONT ~20.6x)
+  report **1.2% of tested CpG units as ASM candidates and 0.51% validated as ASM-QTLs**.
+  - Our **0.23% of tested CpGs per donor** is below their 0.51%, but the denominators differ:
+    theirs is a cohort union validated against genotype across 7,179 people; ours is per donor
+    with no genotype-association step. Our 70-donor union (5.9% of regions) is the
+    number that would need genotype validation to be comparable.
+  - Reassuring direction: `asm_lr`'s earlier pipeline gave a 9.8% candidate rate (~8x deCODE) and
+    was judged implausible; this caller's per-donor rate sits an order of magnitude lower and the
+    recurrent fraction lands on imprinted loci.
 - **Recommended handling of clonality/inflation (do NOT exclude by clonality):**
   - Clonality raises inflation (median λ 2.13 in clonal-like vs 1.25 balanced, p = 2e-4) but is
     **not sufficient as a filter**: excluding all 35 clonal-like donors still leaves 44 inflated
@@ -776,6 +801,14 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
    correlate): candidates are LCL clonality (the XIST/XCI metric once fixed to the promoter),
    EBV copy number, and B-cell differentiation state from the Kinnex RNA.
 
+**PMD/ASM arm — now unblocked (2026-09-17):** loci exist, so replicability, penetrance and CpG
+architecture are all runnable. Do them on the λ-tiered donor set, and report per-donor inflation
+alongside any penetrance number: with 66% of union loci private to one donor and per-donor yield
+scaling with λ, "penetrance" is only interpretable after calibration. Concretely: (1) restrict
+discovery to λ < 1.2 donors, (2) re-test candidate loci in all donors with genomic control,
+(3) define penetrance as the fraction of *tested and calibrated* donors carrying the call, and
+(4) compare recurrent-ASM loci against imprinted DMRs and HPRC2 mQTLs before interpreting.
+
 **Also pending:**
 - Genome-wide version of the chr20 boundary/gene analysis (A03d) once 14772523 lands.
 - Recompute QC10.
@@ -784,6 +817,13 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (late) — ASM locus inventory, imprinting positive control
+- Per calibrated donor: 4,077 ASM regions = 0.21% of regions / 0.23% of CpGs, median |Δ| 0.26.
+- 70-donor union 119,926 regions; 66% singleton; 239 called in ≥90% of donors, of which 77% are
+  within 10kb of a known imprinted DMR (~41 clusters: chr15 SNRPN, chr20 GNAS, chr11 H19/IGF2…).
+- deCODE comparison: 0.51% validated ASM-QTL of CpG units (cohort union, genotype-validated) vs
+  our 0.23% per donor — different denominators, same order.
 
 ### 2026-09-17 (late) — variant excess is replication timing; null calibration complete
 - Genome-wide variant density: PMD SNV excess 82% explained by RT/LAD (indels 99%, SVs none).
