@@ -146,6 +146,13 @@ orientation — worth confirming with one real worked example before assuming, n
 
 ## 7. ONT basecaller/chemistry homogeneity — checked, largely resolved
 
+> **CORRECTED 2026-09-16 — NOT resolved (see JOURNAL.md status board).** For the 146 R9 donors,
+> the `sup5.0.0*` folders hold *new R10.4.1 sequencing runs* (e.g. NA19338 `11_18_24_R1041_UL_...`),
+> not a re-basecall of the R9 data. The hprc-epigenome modbeds use the original calls: 6,000/6,000
+> sampled NA19338 modbed read IDs are from its 2022 R9.4.1 Guppy runs. Chemistry explains
+> R²=0.22 of donor global methylation (R10 ~3 points lower). The text below is kept as the
+> original record.
+
 `asm_lr` excluded 12 of its original 30 donors because their raw ONT data was R9.4.1/Guppy-called
 rather than R10.4.1/Dorado — a real confound for pooled methylation calling. Rather than trust
 the bioRxiv preprint's methods text (couldn't reliably fetch it — see below), checked the actual
