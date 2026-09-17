@@ -12,8 +12,8 @@
 export PATH="/u/home/t/terencew/project-cluo/miniconda3/envs/allcools/bin:$PATH"
 set -euo pipefail
 PROJDIR=/u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2
-cd "$PROJDIR/notebooks/qc"
+cd "$PROJDIR/notebooks/asm"
 echo "$(date): QC16"
 time jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 \
-    --ExecutePreprocessor.kernel_name=allcools QC16_asm_calibration_qc.ipynb
+    --ExecutePreprocessor.kernel_name=allcools 01a_asm_calibration_qc.ipynb
 echo "$(date): done"

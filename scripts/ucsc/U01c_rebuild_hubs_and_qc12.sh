@@ -21,7 +21,7 @@ time python3 U01a_build_track_hub.py
 echo "$(date): U01b gradient hub"
 time python3 U01b_build_gradient_hub.py
 echo "$(date): QC12 notebook"
-cd "$PROJDIR/notebooks/qc"
+cd "$PROJDIR/notebooks/pmds"
 time jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 \
-    --ExecutePreprocessor.kernel_name=allcools QC12_pmd_size_overlap_and_metagene.ipynb
+    --ExecutePreprocessor.kernel_name=allcools 03a_pmd_size_overlap_and_metagene.ipynb
 echo "$(date): done"

@@ -6,7 +6,7 @@ what a future session must fix before trusting a directory. Update it whenever j
 it terse. `RESULTS.md`, `JOURNAL.md`, `JOURNAL.archive.md` and this file live only in this git
 mirror — edit them here; `sync_to_github.sh` does not copy them from the working directory.
 
-Last updated: 2026-09-17 ~15:00
+Last updated: 2026-09-17 ~16:00
 
 ## Output inventory
 
@@ -30,7 +30,10 @@ Last updated: 2026-09-17 ~15:00
 | ASM empirical null (chr20) | `results/asm/null/` | 199/202 | complete; summary `results/qc/data/asm_null_vs_real_chr20.tsv` |
 | XIST promoter skew | `results/qc/data/xist_promoter_skew.tsv` | 96 females | complete (M03) |
 | RNA markers + EBV | `results/qc/data/rna_markers_wide.tsv` | 200 donors | complete (R01a); 29 donors have no RNA file |
-| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge (G03 14780504) running |
+| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge (G03) running |
+| Molecule-level QC (chr20) | `results/qc/data/molecule_qc/` | 1/202 | **queued** (Q01a, job 14781764) |
+| Full 1000G PCA (3,202 samples) | `reference/1000G/pca/g1k_full/` | — | **queued** (job 14781790) |
+| PMD coverage-downsampling test | `results/pmd_downsample/` | — | **queued** (A01g, job 14781691) |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
 λ < 1.2: 70 donors (use as-is) · 1.2–2: 69 · 2–3: 37 (genomic control) · > 3: 25 (exclude from
@@ -45,6 +48,35 @@ genome-wide discovery) · > 8: NA20762 + 2 (exclude outright). Table:
 Whole-genome: 22 autosome files per source. **all** 30,870,511 union CpGs (17.6 GB);
 **hetfilt** 30,844,989 (17.5 GB). chr20 example: 831,782 union CpGs × 402 haplotypes, median
 depth 28 where covered. No chrX/chrY.
+
+## Notebooks: layout, naming, and cohort scope
+
+Grouped by analysis type under `notebooks/<type>/`, named `01a_`, `01b_`, `02a_` … (number =
+task group, letter = step within it). Figure notebooks live in
+`notebooks/final_figures/figure_<n|sN>/{python,R}`: python exports CSVs to `csv/figure_*`, R reads
+those and writes PDFs to `pdf/figure_*` (same split as the lab's YR2_2023 templates).
+
+| notebook | scope | status |
+|---|---|---|
+| `qc/01a_read_length_coverage_pclai` | **2 donors** | pilot placeholder; superseded by figure_s1 |
+| `qc/01b_hprc2_supp_seq_qc` | full cohort (HPRC2 S6) | current |
+| `qc/01c_actual_vs_reported_ont_coverage` | 12 donors, single window | superseded by figure_s1 (measured depth for all 402 haps) |
+| `qc/02a_global_methylation_covariates` | 219 donors | current, but predates chemistry — see RESULTS §1 |
+| `qc/03a_xist_skew_qc` | 98 donors, wrong window | superseded by `M03_xist_promoter_skew.py` |
+| `popgen/01a_popgen_af_ld_hetsite_overlap` | 5 donors (het overlap), chr1-3 | partial; het-overlap arm needs gnomAD |
+| `popgen/01b_haplotype_asymmetry_chain_gaps` | 15 donors → 202 rerun | current |
+| `pmds/01a_pmd_windowed_methylation` | chr20, 3 donors | superseded (threshold method) |
+| `pmds/01b_pmd_hmm_comparisons` | chr20 pilot | superseded |
+| `pmds/02a_variance_decomposition_by_annotation` | chr20, 32 donors, pre-fix input | superseded by `02b` |
+| `pmds/02b_variance_inside_outside_pmds` | genome-wide, 201 donors | current |
+| `pmds/03a_pmd_size_overlap_and_metagene` | genome-wide, 200 donors | current |
+| `pmds/03b_pmd_expansion_metadata` | genome-wide, 201 donors | current |
+| `pmds/04a_mechanism_clock_instability` | genome-wide | queued (job 14781796) |
+| `asm/01a_asm_calibration_qc` | 201 donors, chr20 | queued (job 14781797) |
+| `final_figures/figure_s1/{python,R}` | **whole cohort QC** | queued (job 14781798) |
+
+The four "superseded" notebooks are kept for provenance; nothing downstream reads them. Their
+questions are answered cohort-wide by figure_s1, `pmds/02b`–`04a` and `M03`.
 
 ## Known-stale / do-not-use
 
