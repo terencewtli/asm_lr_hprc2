@@ -831,6 +831,35 @@ discovery to λ < 1.2 donors, (2) re-test candidate loci in all donors with geno
 (3) define penetrance as the fraction of *tested and calibrated* donors carrying the call, and
 (4) compare recurrent-ASM loci against imprinted DMRs and HPRC2 mQTLs before interpreting.
 
+**E. Spatial heterogeneity of PMDs across donors (user idea, 2026-09-17 — not yet designed).**
+The question: beyond "how deep is this donor's domain compartment" (one number per donor, which
+is what everything so far measures), how does domain state vary *along the genome* between
+donors — which domains differ, where do boundaries move, and on what length scale?
+Assets already in place that a design could use:
+- per-bin between-donor variance and the state-regressed residual (`qc_genetics/bin_variance_10kb.tsv.gz`,
+  QC14's residual PCs);
+- the domain-frequency map and per-donor hg38 PMD intervals (`meth_bins/`, `per_hap/*.hg38.pmd.bed`);
+- the boundary-frequency map (`boundaries/boundary_freq_10kb.tsv.gz`) and metagene machinery (A01f);
+- RT/LAD annotation, and HPRC2 per-donor Hi-C (`tsv/meta/hprc2_hic_rna_fiberseq_urls.tsv`,
+  never downloaded) for compartment comparison.
+Candidate framings to choose between next session (none started):
+1. *Which domains vary*: rank domains by between-donor variance after removing each donor's
+   global depth; ask whether variable domains are a distinct class (RT, LAD, gene content,
+   size) or just the shallow edge of the distribution.
+2. *Boundary mobility*: per domain, the spread of per-donor boundary positions; test whether
+   boundaries sit at fixed features (RT transitions, LAD edges, CTCF/TAD boundaries) or drift.
+3. *Length scale*: spatial autocorrelation of each donor's deviation-from-cohort-mean track —
+   does a donor deviate in Mb-scale blocks (compartment-like) or bin-by-bin (noise)?
+4. *Donor clustering on domain shape*: PCA/clustering of donors using only within-domain bins,
+   after removing global depth — are there donors that differ in *which* domains are deep,
+   rather than in how deep all of them are?
+5. *Cell-type/individual axis*: compare the variable set against the fibroblast PMD set and
+   against per-donor Hi-C compartments, to ask whether spatial variability tracks 3D
+   organisation differences between lines.
+Caveats to carry in: chemistry shifts in-domain mCG (~4 points, concentrated in domains), and
+per-donor ASM-style inflation (clonality) also concentrates in intermediate-methylation regions —
+both must be regressed out before "this donor's domain X is different" is trustworthy.
+
 **Also pending:**
 - Genome-wide version of the chr20 boundary/gene analysis (A03d) once 14772523 lands.
 - Recompute QC10.

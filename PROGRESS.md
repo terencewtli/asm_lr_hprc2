@@ -58,16 +58,14 @@ those and writes PDFs to `pdf/figure_*` (same split as the lab's YR2_2023 templa
 
 | notebook | scope | status |
 |---|---|---|
-| `qc/01a_read_length_coverage_pclai` | **2 donors** | pilot placeholder; superseded by figure_s1 |
+| `qc/01a_pclai_sequencing_covariates` | **228 donors / 456 haps** | rebuilt cohort-wide (was 2 donors) |
 | `qc/01b_hprc2_supp_seq_qc` | full cohort (HPRC2 S6) | current |
-| `qc/01c_actual_vs_reported_ont_coverage` | 12 donors, single window | superseded by figure_s1 (measured depth for all 402 haps) |
+| `qc/01c_actual_vs_reported_ont_coverage` | **402 haps / 197 donors** | rebuilt cohort-wide (was 12 donors, one window) |
 | `qc/02a_global_methylation_covariates` | 219 donors | current, but predates chemistry — see RESULTS §1 |
-| `qc/03a_xist_skew_qc` | 98 donors, wrong window | superseded by `M03_xist_promoter_skew.py` |
+| `qc/03a_xist_skew_qc` | **96 females, promoter window** | rebuilt on M03 output (was gene-body window) |
 | `popgen/01a_popgen_af_ld_hetsite_overlap` | 5 donors (het overlap), chr1-3 | partial; het-overlap arm needs gnomAD |
 | `popgen/01b_haplotype_asymmetry_chain_gaps` | 15 donors → 202 rerun | current |
-| `pmds/01a_pmd_windowed_methylation` | chr20, 3 donors | superseded (threshold method) |
-| `pmds/01b_pmd_hmm_comparisons` | chr20 pilot | superseded |
-| `pmds/02a_variance_decomposition_by_annotation` | chr20, 32 donors, pre-fix input | superseded by `02b` |
+| `pmds/01b_pmd_caller_comparison` | **201 donors, genome-wide** | rebuilt; merges the two chr20 pilot notebooks (HMM vs threshold-free) |
 | `pmds/02b_variance_inside_outside_pmds` | genome-wide, 201 donors | current |
 | `pmds/03a_pmd_size_overlap_and_metagene` | genome-wide, 200 donors | current |
 | `pmds/03b_pmd_expansion_metadata` | genome-wide, 201 donors | current |
@@ -75,8 +73,22 @@ those and writes PDFs to `pdf/figure_*` (same split as the lab's YR2_2023 templa
 | `asm/01a_asm_calibration_qc` | 201 donors, chr20 | queued (job 14781797) |
 | `final_figures/figure_s1/{python,R}` | **whole cohort QC** | queued (job 14781798) |
 
-The four "superseded" notebooks are kept for provenance; nothing downstream reads them. Their
-questions are answered cohort-wide by figure_s1, `pmds/02b`–`04a` and `M03`.
+Retired originals live in `notebooks/old/` (kept for provenance, nothing reads them): the 2-donor
+read-length/PCLAI pilot, the chr20 windowed-PMD and HMM-comparison pilots, and the chr20/32-donor
+variance-by-annotation notebook — the last being a true duplicate of `pmds/02b`, which does the
+same decomposition genome-wide with corrected input.
+
+Cohort-wide results from the rebuilds (2026-09-17):
+- PCLAI ancestry PCs for 228 donors; hap1-vs-hap2 PC1 correlation 0.993 (internal consistency).
+- Measured vs HPRC2-reported coverage, 197 donors: median ratio 0.92, but **38 donors below 0.8
+  and some near 0.4** (HG01361 reported 140x vs 58x measured) — the pilot flagged 2 such donors;
+  at cohort scale this is a systematic gap worth understanding (reads not haplotype-assigned or
+  not in the modbed).
+- XIST promoter skew, 96 females: median 0.393, 36% clonal-like, 14 near-complete (>0.7);
+  AFR donors highest (median 0.559).
+- PMD caller comparison, 201 donors: the HMM calls ~129k 10kb bins vs ~55k for a threshold-free
+  definition (Jaccard 0.28), and the two agree more in deeper donors (r = 0.95 with depth) — the
+  HMM is the more permissive of the two.
 
 ## Known-stale / do-not-use
 
