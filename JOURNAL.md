@@ -442,6 +442,22 @@ Caveats:
   concentrated in domains and whether it looks genetic (recurrent across donors, mQTL-linked) or
   stochastic (donor-private), plus whether per-donor ASM yield tracks domain depth.
 
+### PMD input coverage verified cohort-wide, and why not diploid pooling [verified 2026-09-17]
+
+- The per-CpG depth of the methcounts fed to `dnmtools pmd`, across **all 402 haplotypes**
+  (B01a summaries, not a single-donor extrapolation): median 29.7x, IQR 27.5–33.3, min 15.6x,
+  max 41.9x; 0 haplotypes <15x, 6 <20x. Median of per-hap median depth: 29.
+- Coverage is not limiting: corr(mean_depth, PMD Gb) = +0.09, corr(mean_depth, contrast) = +0.10.
+  The 6 sub-20x haplotypes do show lower burden/contrast (1.29 Gb / 0.087 vs 1.47 / 0.143), but
+  n = 6 and depth is confounded with donor state there.
+- Empirical check submitted (`A01g_downsample_pmd.py`, job 14781691): binomially thin NA19338 and
+  HG00097 hap1/hap2 to 20/15/10/5x, re-run `dnmtools pmd`, report burden and Jaccard vs
+  full-depth calls. This answers "is 30x already saturating?" directly.
+- Against pooling haplotypes into a diploid methylome: coverage isn't the constraint; the two
+  haplotypes already agree on domain location (PMD-bin Jaccard 0.91; mean |hap1−hap2| 0.026 in
+  domains); and pooling would require projecting two separately-assembled haplotypes into a
+  common reference while discarding the haplotype resolution the ASM arm needs.
+
 ### ASM results and calibration [verified 2026-09-17]
 
 - **Genome-wide ASM calls landed** (C02a 4,410/4,444 tasks; C04a merge over 201 donors).

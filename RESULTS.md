@@ -28,6 +28,22 @@ Last updated 2026-09-17.
 **Coverage.** ~30x per CpG per haplotype (mean/median 30.1/30 for NA19338 hap1 over 32.2M
 assembly CpGs, 99.93% of them covered); ~35x physical read depth, mean read span 57 kb.
 
+**Coverage is sufficient per haplotype — verified across all 402, not extrapolated.** Mean
+per-CpG depth of the methcounts actually fed to `dnmtools pmd`: median **29.7x**, quartiles
+27.5–33.3, **min 15.6x, max 41.9x; none below 15x, only 6 haplotypes below 20x**. `dnmtools`
+documents ~10x as its recommendation, so every haplotype is ~1.5–4x above it. Coverage barely
+predicts the calls (corr with PMD burden +0.09, with domain contrast +0.10).
+
+**Why we call PMDs per haplotype rather than pooling the two into a "diploid" methylome:**
+- coverage is not the binding constraint (above), so pooling buys little;
+- the haplotypes agree about where domains are (PMD-bin Jaccard 0.91 per donor; mean |hap1−hap2|
+  0.026 inside domains vs 0.019 outside), so pooling would not move the map;
+- pooling is not free: the two haplotypes are assembled separately, so it requires projecting
+  both into a common reference first, and it discards exactly the haplotype resolution the ASM
+  arm of the project needs.
+A downsampling test (thin each haplotype to 20/15/10/5x and re-call) is running to state the
+coverage-sufficiency point empirically rather than by reference to the tool's recommendation.
+
 **Chemistry is the dominant technical covariate and is NOT harmonized.** The modbeds use each
 donor's original basecalls: 156 donors R9.4.1/Guppy, 73 R10.4.1/Dorado (HPRC2 Supp S6). Verified
 by read ID: NA19338 and HG00099 modbed reads are 6,000/6,000 from their 2022 R9 runs, although
