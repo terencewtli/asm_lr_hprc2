@@ -14,7 +14,7 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
 
 ---
 
-## 1. Status board (as of 2026-09-16)
+## 1. Status board (as of 2026-09-17)
 
 ### Data provenance and quality
 
@@ -39,6 +39,15 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
   - NA19338 and HG00099: 6,000/6,000 sampled modbed read IDs each match the donor's 2022
     **R9.4.1 Guppy** runs; none match its 2024 R10 sup5 runs. Provenance for R10 donors can't be
     settled by read ID, because the dorado0.6 and sup5 folders contain the same reads.
+- **[verified] HPRC2 documents chemistry per sample:** Supp Table S6 `sequencing_chemistry_ont`
+  lists 156 R941 and 73 R1041. It agrees with the folder-based labels for all 202 classifiable
+  donors, and each donor's released coverage comes from one chemistry. **Use S6 as the canonical
+  chemistry variable** (copied to `results/qc/data/supp_seq_qc.csv`).
+  - The preprint's promoter-mQTL model includes "ONT chemistry" as a covariate, alongside 30 PEER
+    factors, 10 genetic PCs, coverage and N50. So the authors know about it.
+  - The main text reports no chemistry effect size and no global-methylation analysis.
+  - Their analysis repo (github.com/twlab/HPRC2_DNA_Methylation) returns 404 as of 2026-09-17.
+  - The user plans to contact the WashU authors.
 - **[verified] Chemistry is a major global-methylation covariate, bigger than ancestry**
   (219 donors, QC04 global methylation):
   - Variance explained: R² = 0.219 for chemistry alone (R9 vs R10 vs other), 0.116 for
@@ -82,9 +91,21 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
   missing inputs.
 - **[verified] The junk-row fix barely changes PMD calls.** NA19338 chr20 hap1: 72 PMDs covering
   63.6% of chr20 (vs 64.2% before), old-vs-new Jaccard 0.946.
-- **[verified] chr20 PMD survey, 201 donors × 2 haps** (`results/qc/data/chr20_pmd_survey/`):
-  - **Only 8 donors get any `dnmtools pmd` calls, and calls are all-or-nothing**: 51–65% of
-    chr20 or 0%.
+- **[verified] Genome-wide `dnmtools pmd` (A01c) calls PMDs in EVERY haplotype**:
+  1.24–1.72 Gb per haplotype, median 1.45 Gb (≈40–56% of the assembly), domains up to ~15 Mb
+  (first 81 haplotypes; HG00097 hap1: 40% of CpGs in PMDs, mean methylation 0.56 inside vs 0.73
+  outside).
+  - Fit on a whole genome, the HMM always finds a lower and a higher compartment: a relative call.
+  - The chr20-only fits below behave differently (most donors get 0), so **chr20-only PMD burden
+    numbers are not comparable to genome-wide ones.**
+  - Consequence: use continuous per-bin methylation (B01) as the primary readout, and treat PMD
+    calls as a relative compartment label.
+- **[verified] chr20 PMD survey, 201 donors × 2 haps** (`results/qc/data/chr20_pmd_survey/`;
+  PMDs called on the chr20 contig alone):
+  - Each haplotype uses its single best chr20 contig; a few donors have chr20 split across
+    contigs (~310K instead of ~730K CpGs).
+  - **Only 8 donors get any chr20-only `dnmtools pmd` calls, and calls are all-or-nothing**:
+    51–65% of chr20 or 0%.
     - The 8: NA19338 (R9), HG03017 (R9), HG00128, HG03784, NA19682, NA20282, NA20762, NA21093
       (all R10). That's 6/51 R10 donors vs 2/142 R9 donors.
     - HG03017 and NA21093 get calls on hap2 only.
@@ -122,6 +143,42 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
   numbers came from pilot calls on junk-inflated input; their chr20 values reproduce (Jaccard
   0.41), but they should be recomputed genome-wide.
 - **[reported]** `dnmtools pmd -S/-r/-p` error on this build; only `-o` is used.
+- **[verified] Vectorized chain mapping replaces liftOver for per-CpG lifting** (B01a).
+  - Speed: liftOver needed ~3h per haplotype for ~32M single-base records; the vectorized
+    version takes 3 min and 8.8 GB (HG00097 hap1).
+  - Agreement on NA19338 chr20: reproduces 99.3% of liftOver positions with identical values,
+    and 98.4% land on an hg38 CG (liftOver: 97.6%). The difference is the strand-flipped-block
+    correction (the native C maps to the hg38 G, so the CpG is at mapped − 1).
+  - A02a bigWigs and the chr20 survey used liftOver, which misses that correction, so CpGs on
+    flipped blocks are 1 bp off there. Flipped blocks carry <1% of chain score; this is minor.
+  - Genome-wide mapping rate is 81.8% (chr20: 92%); centromere/satellite sequence doesn't map.
+
+### HPRC2 preprint (bioRxiv 2026.07.21.739710) — what it does and doesn't cover [verified, main text + Methods + supp xlsx]
+- **Methylation content:** the "A Panepigenome" section covers:
+  - 17.6M non-reference CpGs;
+  - PacBio vs ONT agreement (1.55% mean deviation over 1kb bins; details in Supp Note 2, not
+    local);
+  - graph-based methylation calling (Panmethyl);
+  - 80,854 promoter mQTLs (Supp S11), with local-ancestry allele-frequency differences of lead
+    variants (PM20D1 example);
+  - a Nanopore methylation QC that flags NA20762, NA19338 and HG02583.
+- **Not in the main text:**
+  - PMDs or large hypomethylated domains (no "partially methylated" hits);
+  - global-methylation variance decomposition by ancestry, sex, age or passage;
+  - a chemistry effect size (chemistry appears only as an mQTL covariate);
+  - an LCL clonality discussion.
+  - Supplementary Notes/Figs weren't available locally, so this is not an exhaustive check.
+- **Supp tables:**
+  - S10: CpG counts and methylation by genomic context and variant source.
+  - S11: *significant* promoter mQTLs only. 200bp T2T-CHM13 bins with lead variant and q; no
+    effect sizes, no tested-but-null bins, no genome-wide var-CpG table.
+  - S15: passage and karyotype.
+  - S6: chemistry and coverage.
+- **S11 lifted to hg38:** 80,016/80,854 bins, using UCSC `hs1ToHg38.over.chain.gz`, stored in
+  `/u/project/cluo_scratch/terencew/claude/asm_lr_hprc2/ref/`.
+- **chr20 pilot:** 52.7% of mQTL bins fall inside NA19338's consensus PMDs, vs 44% of gene-end
+  ±1kb sequence (61% of chr20 overall). This hints that genetic regulation isn't depleted in
+  PMDs, but the tested-bin background isn't published.
 
 ### ASM / phasing pipeline
 
@@ -147,26 +204,51 @@ Labels: **[verified]** = rechecked directly against data, with the check describ
 | 14772523 | A01c genome-wide `dnmtools pmd` (native haplotype coordinates) | 14772522 |
 | 14772524 | A02a per-haplotype hg38 bigWigs (per-CpG % methylation, autosomes) | 14772522 |
 | 14764741 | P03 production donor×chrom ASM matrix | — |
+| 14773897 | B01a genome-wide hg38 10kb bins + hg38 PMD intervals per haplotype (`scripts/meth_bins/`) | A01c |
+| 14774195 | B01b_summary: B01b matrix/PCA/covariates/continuum/domain-frequency + B02a genome-wide boundary genes | B01a |
 
-The chr20 survey (14772521) is done. Once 14772522 finishes, the user can delete the old unfiltered
-methcounts (154G):
+The chr20 survey (14772521) and A01a (14772522) are done: 404/404 CpG methcounts. The user can now
+delete the old unfiltered methcounts (154G):
 `rm /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/data/pmds/*/*_hap?.methcounts.tsv.gz`
 
 ### Open decisions
 
-1. **Chemistry handling.** Dropping R10 donors would remove ~51+ donors, not "a couple"; dropping
-   R9 would remove 146. Options:
-   - (a) include chemistry as a covariate everywhere;
-   - (b) restrict the main analyses to R9 and replicate in R10;
-   - (c) regenerate modbeds from the uniform `sup5.0.0` R10 BAMs, which exist for 204 donors.
-     That means realigning to haplotype assemblies (large compute), but it's the only fully
-     harmonized option.
+1. **Chemistry handling.** Per S6: 156 R941 and 73 R1041.
+   - Re-basecalling and re-mapping is ruled out: no bandwidth in a ~2-month project (user,
+     2026-09-17). The user will ask the WashU authors how they handle it.
+   - Plan: S6 chemistry is a covariate in every cross-donor model; every headline result is
+     replicated within R941 alone (n≈150) and shown per chemistry.
+   - For ASM specifically: hap1 and hap2 of a donor share chemistry, so the within-donor ASM
+     contrast is largely self-controlled. Chemistry still matters through:
+     - per-donor noise and dispersion (estimate the caller's nuisance parameters per donor,
+       which already happens, and report them by chemistry);
+     - 5mC-vs-5hmC separation (R10 Dorado splits 5hmC out, R9 Guppy 5mC may absorb it), which
+       can shift absolute haplotype methylation at 5hmC-rich loci;
+     - any cross-donor "penetrance" or frequency statistic, which needs chemistry adjustment and
+       an R941-only replication.
+   - Positive controls to check: imprinted-DMR ASM detection rate and effect size by chemistry.
 2. **When to lift to hg38.** Currently PMDs are called in native coordinates and only per-CpG
    values are lifted. For cross-donor work, lifting CpGs first gives common coordinates and a
    common CpG set, at the cost of ~8% of CpGs that don't lift. Suggest doing both.
-3. **Superpopulation summaries.** Present them only after adjusting for chemistry; lead with
+3. **Framing (recommendation, 2026-09-17; user to decide).**
+   - Don't make this Figure 1 of the ASM paper as a PMD story. Make it a Figure 1 panel set
+     titled "what the ONT haplotype methylomes look like and what varies across donors",
+     because every downstream ASM/penetrance claim depends on it:
+     - chemistry (S6) as the dominant technical axis;
+     - a continuum of global methylation / domain hypomethylation that is shared across donors
+       at the same locations and is not ancestry-structured after chemistry adjustment;
+     - near-equal hap1/hap2 at domains (so domain state is not a source of false ASM);
+     - HPRC2-flagged donors.
+   - The genome-wide PCA, domain-frequency map and LCL-vs-fibroblast comparison go to
+     supplementary figures, plus a Methods/QC note.
+   - If domain frequency shows constitutive LCL domains plus a donor-state continuum, and
+     genetics-vs-state variance partitions cleanly by domain class (planned analysis D), that is
+     an LCL-methylome result HPRC2 didn't report. It could become a short separate note or
+     resource paper rather than stretching the ASM paper's theme.
+   - Decide after B01b/B02a land.
+4. **Superpopulation summaries.** Present them only after adjusting for chemistry; lead with
    donor-level distributions.
-4. The 25 donors with no ONT BAMs in the bucket have unknown chemistry; the 27 donors without an
+5. The 25 donors with no ONT BAMs in the bucket have unknown chemistry; the 27 donors without an
    assembly are excluded.
 
 ---
@@ -207,6 +289,22 @@ methcounts (154G):
   reprogramming PMDs (igvf_pgp) and to gene annotations. Boundary genes are expected to be
   enriched for interesting genes; test genome-wide against matched random windows.
 
+**A–C are implemented genome-wide** in `scripts/meth_bins/`:
+- B01a: per haplotype.
+- B01b: matrix, PCA (raw and per-donor-centered, 10kb and 50kb), PC~covariate R², continuum
+  metrics, domain frequency (own-PMD and caller-free relative definitions, per chemistry),
+  donor×donor and donor×fibroblast PMD-bin Jaccard.
+- B02a: genome-wide LCL vs fibroblast boundary loci, genes, and permutation enrichment.
+
+**D. Genetically regulated methylation vs PMDs** (worth doing; design):
+- For HPRC2 S11 promoter mQTL bins (lifted to hg38): compare the rate inside constitutive,
+  variable and never-PMD 10kb bins against a matched background of all promoter 200bp bins
+  (built from gencode TSSs; the tested-bin universe isn't published, so match on CpG density
+  and gene-TSS proximity).
+- With our own data: per-bin between-donor variance decomposed into genetic (het-site/ASM-based,
+  via P03) vs global-state (regression on donor global methylation) components, by domain
+  class. Predicted: PMD variance is dominated by donor state, CGI/promoter variance by genetics.
+
 **Also pending:**
 - Genome-wide version of the chr20 boundary/gene analysis (A03d) once 14772523 lands.
 - Recompute QC10.
@@ -215,6 +313,23 @@ methcounts (154G):
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17
+- Genome-wide A01c PMD calls cover ~40–56% of every haplotype, so the HMM is relative.
+  chr20-only burden numbers are not comparable to genome-wide ones.
+- Found S6 `sequencing_chemistry_ont` (156 R941 / 73 R1041) and confirmed the preprint uses ONT
+  chemistry as an mQTL covariate. Reviewed the preprint for PMDs, variance decomposition and
+  var-CpGs (none reported; S11 has significant promoter mQTLs only, in CHM13). Lifted S11 to
+  hg38 and ran the chr20 mQTL-in-PMD pilot.
+- Built `scripts/meth_bins/`:
+  - B01a: per haplotype; vectorized chain mapping validated against liftOver, ~3 min/hap.
+  - B01b: matrix, PCA, covariates, continuum, domain frequency, bin-level Jaccards.
+  - B02a: genome-wide boundary genes.
+  - All tested on 4 donors (outputs will be overwritten by the full run).
+  - Jobs 14773897 (B01a array, held on A01c) and 14774195 (summary, held on B01a).
+- chr20 survey caveats noted: single best contig; liftOver misses the flipped-block offset.
+- Added ASM chemistry-handling plan, planned analysis D (mQTL/genetic vs state variance by
+  domain class), and the framing recommendation.
 
 ### 2026-09-16 (late)
 - Retracted the median-1 coverage claim (the junk-row bug). Added the CpG filter; fixed the
