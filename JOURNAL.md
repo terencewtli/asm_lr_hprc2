@@ -19,6 +19,116 @@ Entry template:
 
 ---
 
+## 2026-09-16 — same day, still later: PMD coverage sparsity root-caused (real, not a bug), diploid PMD pooling started, all forks converted to qsub/stopped to save tokens
+
+**State at start:** the entry above had the real HMM PMD calls, variance decomposition, and
+bigWig pipeline all landed via forks. User asked to stop using forks (token cost) and convert
+remaining background work to `qsub`; separately pushed hard on whether NA19338's 60%-of-chr20
+PMD coverage was real or an artifact, since even cancer genomes don't typically reach that.
+
+**Decisions made / findings:**
+- **All forks stopped, real work converted to qsub.** Found the only actual at-risk in-shell
+  background process was QC09's `postliftover_full.sh` (single-core, ~2min/donor, sequential
+  over 95 donors) — converted to a proper array, **`M02_postliftover_hap_balance_array.sh`, job
+  14771752** (95 tasks, skip-if-exists — 40/95 already-computed donors' results were preserved
+  into per-donor files first, so the array only reruns the remaining 55). Killed the orphaned
+  in-shell process (and one leftover orphaned awk child reparented to PID 1). QC07's fork had
+  already exited on its own with no active compute to lose (its script was validation-scale,
+  10 donors, not full-cohort). Stopped the two already-finished-but-still-alive forks (bigWig,
+  variance-decomposition) via `TaskStop` since their real work was already safely committed
+  (qsub job 14771527, and `QC11` notebook respectively). **No forks running as of this entry** —
+  all further work in this entry was done directly, not delegated.
+- **NA19338's PMD coverage, recomputed directly and precisely**: 60.4% of chr20 (38.89Mb),
+  vs. the fibroblast reference set's 28.9% (18.65Mb). **Jaccard index: 0.413** (16.81Mb
+  intersection / ~40.7Mb union, 48 overlapping interval pairs) — the single honest
+  overlap number; lower than either one-directional percentage (43.2% NA19338-covered-by-
+  fibroblast, 90.1% fibroblast-covered-by-NA19338) because it correctly penalizes the size
+  mismatch between the two sets (NA19338's footprint is ~2x the fibroblast set's on this
+  chromosome — nested-but-different-sized, not two similarly-sized partially-overlapping sets).
+- **60% is high enough that it warranted real skepticism, and the root cause was found and
+  confirmed twice independently — a genuine data property, not a pipeline bug**: mean per-CpG
+  coverage in the methcounts feeding `dnmtools pmd` is ~10x (nominally meeting dnmtools'
+  documented recommendation), but **median per-CpG coverage is just 1**, with 66-68% of
+  positions below 5 calls. Checked directly against the raw modbed (bypassing the methcounts
+  pipeline entirely) at NA19338 hap1, a 100kb test window: **physical read depth is genuinely
+  ~32x** (96 reads spanning the window, matching the user's recollection of ~30x/haplotype) —
+  but per-CpG-position confident-call depth is dramatically sparser (median 1, mean ~9.7),
+  confirmed with correct offset-sign strand-symmetrization applied (an initial quick check
+  without that adjustment gave a similar-looking but methodologically-wrong result — corrected
+  and reconfirmed before trusting it). **Conclusion: read depth and per-CpG confident-call
+  depth are two very different numbers for this ONT data** — most individual read/position
+  pairs apparently don't clear whatever modification-calling confidence threshold produced the
+  modbed, so a position can sit under 30x of physical read coverage while still getting only 1-2
+  actual calls. `dnmtools pmd` is almost certainly calibrated against WGBS's much more
+  uniform/Poisson-like coverage shape (mean≈median), not this extreme right-skew — likely
+  explaining the inflated PMD-region-fraction. **Checked whether this sparsity is concentrated
+  inside the called PMD regions specifically (which would be a cleaner "artifact drives the
+  calls" story) — it is not**: coverage inside vs. outside PMD regions is statistically
+  indistinguishable (mean 10.02 vs 10.67, median 1 vs 1 in both). The sparsity is uniform across
+  the whole chromosome, meaning the entire HMM run — not just parts of it — is operating outside
+  dnmtools' intended coverage regime.
+- **Confirmed PMD calling is genuinely CpG-level, not binned** — `dnmtools pmd`'s input
+  (methcounts) is one row per real CpG genomic position; the earlier 20kb-windowed threshold
+  approach (QC06's first pass, now superseded) was a completely separate, simpler method and
+  never fed into the real HMM numbers under discussion here.
+- **Practical implication — every PMD percentage reported so far this session (QC06, QC10, the
+  60.4%/28.9%/Jaccard numbers above) should be treated as provisional**, likely inflated by this
+  coverage-sparsity effect, until addressed.
+- **Started building a "diploid" (pooled hap1+hap2) PMD-calling variant** to directly test
+  whether pooling roughly doubles effective per-CpG depth and resolves the over-calling: lift
+  each haplotype's methcounts to hg38 via existing chain files (`liftOver -bedPlus` to carry
+  meth-count/coverage fields through, not just position), sum counts at each shared hg38
+  position across both haplotypes, recompute the methylation fraction, then rerun `dnmtools
+  sym`/`dnmtools pmd` on the pooled input. Matches how the original WGBS template was actually
+  used (WGBS is inherently unphased/diploid-pooled; the haplotype-split approach used so far this
+  session was this project's own necessary adaptation, not the tool's native design point).
+  **Not finished** — was mid-build (confirming `liftOver`'s bed-plus-column syntax for carrying
+  extra fields) when this entry was written.
+
+**Produced:** `scripts/qsub/M02_postliftover_hap_balance_array.sh` (job 14771752),
+`tsv/meta/hprc2_hic_rna_fiberseq_urls.tsv` (229 rows, Hi-C/RNA/Fiber-seq download URLs, verified
+real file names via direct bucket listing — no ATAC-seq exists in this bucket, only Fiber-seq
+and only for 21/229 samples). No new notebook this entry — this was direct investigation, not
+delegated, and not yet packaged into a notebook.
+
+- **This same coverage-sparsity property does NOT independently invalidate the ASM/P03 pipeline
+  the same way, and this isn't a new phenomenon** — `github/ont_asm_caller/docs/PRIORITIES.md`
+  (item 3, closed 2026-09-15, a *different* ONT dataset, HG00146 chr15) already found and named
+  the identical property: "median per-position read support is 0.02; 63% of positions are seen by
+  <20% of a window's reads." `dnmtools pmd` assumes roughly WGBS-uniform per-CpG support (mean≈
+  median) and has no way to distinguish "real intermediate methylation" from "noisy n=1 estimate"
+  — that's the direct mechanism behind the inflated PMD calls. The ASM caller's region-pooling
+  design (beta-binomial over many CpGs/reads per region, not per-CpG independently) exists
+  *because of* this exact sparsity, not despite it — so it's far more robust to it by
+  construction, though its own calibration (design effect, dispersion, the ascertainment-bias
+  item already filed there) is only as good as being tested against this real coverage shape,
+  not an idealized one. Worth cross-referencing this session's finding directly in
+  `ont_asm_caller` next time — right now the two observations (this project's coverage sparsity,
+  that repo's per-position-read-support finding) exist as separate, unlinked entries pointing at
+  the same underlying fact.
+
+**Open / next:**
+1. **Finish the diploid PMD pipeline** — lift+pool hap1+hap2 methcounts to hg38, rerun
+   `dnmtools pmd`, compare PMD-region-fraction against the current per-haplotype 60.4% to see if
+   pooled coverage resolves the apparent overcalling. This is the single most important
+   unresolved thread — every PMD finding this session hangs on the answer.
+2. If pooling resolves it: decide whether to rerun the full 202-donor array
+   (14771403/14771405) in diploid/pooled mode instead of (or in addition to) per-haplotype mode,
+   and redo QC10's fibroblast-overlap/gene-enrichment numbers against the corrected calls.
+3. If pooling does NOT resolve it: the coverage-sparsity issue needs a different fix (e.g. an
+   explicit minimum-coverage filter before calling, or accepting that `dnmtools pmd` isn't
+   well-suited to this coverage regime without modification) before any PMD percentage from this
+   project should be trusted.
+4. Carried over: rare/private-variant extension via gnomAD (still not built), `sync_to_github.sh`
+   still doesn't cover `scripts/download/`/`scripts/harmonize_hg38/all_donors/`.
+5. Session-persistence: still the same `QRLOGIN` job (14764647), expires ~05:57 tomorrow.
+
+**If resuming, read:** this entry first — the coverage-sparsity finding is a correction that
+applies to every PMD number in every earlier entry this session (QC06, QC10, the fibroblast
+overlap/Jaccard numbers), not just a footnote.
+
+---
+
 ## 2026-09-16 — data/ reorg broke every hardcoded PROJDIR-relative path; found via H01/H02 audit, fixed, HMMFlagger gap discovered and backfilled, pipeline resubmitted end-to-end
 
 **State at start:** job 14756945 (genome-wide H01, submitted 2026-09-15) had finished. User had
