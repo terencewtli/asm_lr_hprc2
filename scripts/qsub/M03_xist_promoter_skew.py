@@ -102,7 +102,7 @@ def main() -> None:
     ok = df.dropna(subset=['skew']) if 'skew' in df else df
     if len(ok):
         print(ok[['hap1_meth', 'hap2_meth', 'skew']].describe().round(3).to_string())
-        print(f'donors with skew > 0.5: {(ok.skew > 0.5).sum()} / {len(ok)}')
+        print(f"donors with skew > 0.5: {(ok['skew'] > 0.5).sum()} / {len(ok)}")
 
 
 if __name__ == '__main__':

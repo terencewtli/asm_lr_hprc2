@@ -426,6 +426,59 @@ Caveats:
   concentrated in domains and whether it looks genetic (recurrent across donors, mQTL-linked) or
   stochastic (donor-private), plus whether per-donor ASM yield tracks domain depth.
 
+### Review of an external critique (2026-09-17) — what was already answered, what it changed
+
+The critique was written against an earlier journal state (chr20-only PMD results). Checked
+point by point against current data:
+
+1. **"No genome-wide HMM PMD calls yet; is the gradient smooth or bimodal?" — ANSWERED.**
+   404/404 haplotypes now have genome-wide `dnmtools pmd` calls. The gradient is **smooth, not
+   on/off**: every donor has PMD calls (burden 1.10–1.89 Gb, median 1.45; **no donor near zero**),
+   PMD burden is unimodal (1-component Gaussian BIC better than 2), and domain depth is
+   continuous with a long deep tail (ΔBIC for 2 components = 2, i.e. negligible, driven by the
+   two outliers NA20762/NA19338). "PMD-positive vs PMD-negative donors" is not the right framing;
+   depth is.
+2. **"Passage and ancestry don't explain it" — CONFIRMED, and the real driver was missed.**
+   Genome-wide (QC13): passage R² ≈ 0.03 with no effect after chemistry; superpopulation partial
+   R² ≈ 0.04. But **ONT chemistry** (R941 vs R1041, HPRC2 Supp S6) explains ~0.19–0.23 of domain
+   metrics and is the single largest measured covariate — it was not in the critique's list.
+3. **"Monoclonality is the highest-value untested hypothesis" — NOW TESTED, and it is NOT the
+   driver.** The XIST promoter window was fixed (`M03_xist_promoter_skew.py`; QC05's gene-body
+   window was the problem, as the critique said).
+   - The metric now works: skew |hap1−hap2| median 0.393, max 0.853; **35/96 female donors
+     (36%) exceed 0.5**, several essentially fully skewed (e.g. NA18508 0.003 vs 0.856).
+     That reproduces, and exceeds, Plagnol 2008's ≥22% monoclonality estimate in an independent
+     assay.
+   - But clonality does **not** explain domain state: partial R² vs domain depth 0.004
+     (p = 0.54, r = 0.011), and ≈0 for global mCG and outside-domain mCG.
+   - So LCL clonality is real and worth reporting as a cohort property, but it is not the
+     gradient's cause.
+4. **"EBV burden, growth rate, other candidates" — TESTED, all weak.** `chrEBV` is present in the
+   HPRC2 Kinnex RNA bigWigs (the assemblies have no EBV), giving a per-donor EBV transcription
+   proxy: mean ~1,130 ppm of transcriptome, 197 donors. Partial R² (after chemistry) on domain
+   depth: **EBV 0.014 (p = 0.10)**, proliferation markers 0.008 (p = 0.21), naive/memory-B 0.015,
+   plasmablast 0.001, activation 0.009, senescence 0.001. None is a driver. (Proliferation
+   markers measure instantaneous proliferation, not cumulative divisions, so this does not
+   contradict the mitotic-clock model.)
+5. **"Re-derive global methylation genome-wide; is PMD status just a global-methylation
+   threshold?" — ANSWERED.** Global mCG is genome-wide since B01a.
+   - Domain depth and global mCG are nearly redundant (r = −0.96, R² 0.92), so PMD state is not a
+     separate switch.
+   - But it is **not a uniform shift either**: regressing in-domain on outside-domain mCG gives
+     slope **3.08** (1.0 would be a uniform genome-wide shift), i.e. domains move ~3× as much as
+     the rest of the genome, and 40% of in-domain variation (residual SD 0.025 of 0.064) is
+     independent of the outside-domain level.
+   - Practical read: report domain depth (or solo-WCGW depth) as the phenotype, with global mCG
+     as its near-equivalent summary — not "PMD-positive vs negative".
+
+**Still genuinely open after this review:** what drives the depth continuum. Ruled out or weak:
+passage, ancestry, sex, clonality, EBV burden, RNA-measured proliferation/differentiation state,
+line-establishment site, banking era, coverage/N50. Chemistry is a technical contributor but does
+not explain the biological spread within a chemistry. The best remaining handles are the
+solo-WCGW clock (running), replication timing (already the strongest structural correlate,
+rho = −0.82 with the domain map), and donor-level cumulative division history, which nothing in
+this dataset measures directly.
+
 ### Jobs (as of 2026-09-17 ~10:30)
 
 Done:
@@ -649,6 +702,15 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (night) — critique reviewed against data
+- Gradient is smooth/unimodal, every donor has PMDs (1.1–1.9 Gb): the "PMD-positive vs negative"
+  framing is superseded.
+- XIST promoter skew fixed and run: 36% of female LCLs are clonal-like, but clonality does not
+  explain domain depth (p = 0.54).
+- EBV transcription (chrEBV in the Kinnex bigWigs) added to the RNA panel: not a driver (p = 0.10).
+- Domain depth vs global mCG: near-redundant (r = −0.96) but domains move ~3× the genome-wide
+  shift, so ~40% of in-domain variation is independent.
 
 ### 2026-09-17 (late evening) — all five PMD follow-ups launched
 - RT/LAD annotation built; domain frequency vs replication timing Spearman −0.82 (mechanism
