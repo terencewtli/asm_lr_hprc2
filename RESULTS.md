@@ -10,6 +10,9 @@ Last updated 2026-09-17.
 
 ---
 
+**Two manuscripts.** The PMD/domain findings (§2-5) and the ASM findings (§6-7) are being written
+in parallel as separate papers; §1 (resource and its technical limits) is shared by both.
+
 ## The questions
 
 1. Is this dataset usable as a population-scale haplotype methylome resource, and what are its

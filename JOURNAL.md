@@ -856,9 +856,46 @@ Candidate framings to choose between next session (none started):
 5. *Cell-type/individual axis*: compare the variable set against the fibroblast PMD set and
    against per-donor Hi-C compartments, to ask whether spatial variability tracks 3D
    organisation differences between lines.
+6. *Within-domain position* (**added 2026-09-17, user**): is a PMD equally variable across donors
+   throughout its body, or is the variability position-dependent — edges vs core, or one flank vs
+   the other? The metagene machinery (A01f: 40 scaled body bins + 200kb flanks per domain per
+   haplotype, already computed for all 402 haplotypes) gives this almost for free: compute
+   between-donor variance *per metagene position* instead of the mean profile, and ask whether
+   the variance profile is flat across the body or peaked at the edges. Worth separating
+   "domains deepen uniformly" from "domains erode inward from their boundaries", which are
+   different mechanisms.
+7. *Are the boundaries themselves conserved?* (**added 2026-09-17, user**) Distinct from 2 above:
+   not just whether boundary positions drift between donors, but whether a boundary is a fixed
+   genomic feature at all. Tests: per-domain spread of per-donor boundary calls; sharpness of the
+   methylation transition (slope over the boundary window) and whether sharpness varies by donor
+   or by locus; whether boundaries coincide with RT transitions, LAD edges, CTCF sites or TAD
+   boundaries; and whether the boundaries shared with fibroblasts (already found to be
+   gene-enriched, 1.13x) are the most conserved ones across donors.
+
+**Orthogonal validation of the PMD calls (added 2026-09-17, user).** All three assays exist per
+donor in HPRC2 and none has been downloaded yet (URLs in `tsv/meta/hprc2_hic_rna_fiberseq_urls.tsv`;
+Fiber-seq exists for only 21/229 samples):
+- **Hi-C** (`hg38.hic`): PMDs should correspond to the B compartment. Per-donor compartment calls
+  would test whether domain depth tracks a donor's own 3D organisation, and whether
+  spatially-variable domains are compartment-switching regions.
+- **RNA** (Kinnex `expression.{plus,minus}.hg38.bw`, already read remotely for the marker panel):
+  PMDs are gene-poor and transcriptionally quiet; expression inside domains vs flanks per donor
+  validates the calls and tests whether deeper domains silence more.
+- **Fiber-seq** (`fiberseq.PacBio.hap{1,2}.modbed.gz`, 21 samples): chromatin accessibility and
+  nucleosome occupancy inside domains; the only assay here that reports chromatin state on the
+  same molecules as methylation.
+
 Caveats to carry in: chemistry shifts in-domain mCG (~4 points, concentrated in domains), and
 per-donor ASM-style inflation (clonality) also concentrates in intermediate-methylation regions —
 both must be regressed out before "this donor's domain X is different" is trustworthy.
+
+**Scope note (user, 2026-09-17): the PMD/domain work is a separate manuscript from the ASM
+work, written in parallel.** They share the resource, the QC and the calibration machinery, but
+the questions differ: the PMD story is about what LCL methylomes look like and why they vary;
+the ASM story is about allele-specific regulation and its penetrance. Section 0's items 2-5 and
+7-8, plus analyses A-E here, belong to the PMD manuscript; items 6 and 9-10 and the C0x pipeline
+belong to the ASM one. Keep chemistry, clonality and calibration findings in both — they are
+shared limitations, not one story's problem.
 
 **Also pending:**
 - Genome-wide version of the chr20 boundary/gene analysis (A03d) once 14772523 lands.
