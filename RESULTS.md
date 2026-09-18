@@ -274,4 +274,5 @@ calibrated* donors, and anchor against imprinted DMRs and HPRC2 mQTLs.
 | Solo-WCGW | `results/meth_bins/solo_wcgw/` |
 | Per-CpG hg38 bigWigs | `data/pmds/<s>/<s>_hap<h>.hg38.{meth,depth}.bw` |
 | UCSC hubs | `/u/project/cluo/PUBLIC_SHARED/ucsc/asm_lr_hprc2{,_gradient}` |
-| Figures | `figures/{qc,pmds,asm,genetics}/` |
+| Figures | `figures/{qc,pmds,asm,genetics}/`, produced by `notebooks/{qc,pmds,asm}/` (prefix matches the filename, e.g. `qc12_*` → `pmds/03a_pmd_size_overlap_and_metagene`) |
+| Notebooks | `notebooks/<type>/` and `notebooks/final_figures/figure_*/{python,R}` |
