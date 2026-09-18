@@ -24,7 +24,7 @@ the trailing letter is the step:
 |---|---|
 | `A01*`, `A02*` | modbed → methcounts → PMD calls → bigWigs → metagene (`scripts/call_pmds/`, `scripts/bigwig/`) |
 | `B01*`–`B06*` | 10kb bin matrix, domain frequency, QC, variant density, solo-WCGW, RT/LAD (`scripts/meth_bins/`) |
-| `C01*`–`C06*` | ASM: regions → per-donor calls → CpG matrices → genome merge → domain join → empirical null (`scripts/asm/`) |
+| `C01*`–`C07*` | ASM: regions → per-donor calls → CpG matrices → genome merge → domain join → empirical null → replication (C07a candidates, b re-test, c genotype context, d classes) (`scripts/asm/`) |
 | `G0*`, `H0*`, `P0*` | assembly-vs-hg38 variants, het sites, ancestry PCA (`scripts/harmonize_hg38/`, `scripts/qsub/`) |
 | `M0*`, `Q0*`, `R0*` | one-off per-donor metrics: global mCG, XIST skew, molecule QC, RNA markers |
 | `U01*` | UCSC track hubs (`scripts/ucsc/`) |

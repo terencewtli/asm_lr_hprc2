@@ -41,3 +41,9 @@ Full schematic and details of pipeline are pending.
   modbed file sizes (coverage proxy), other available data types, resolved assembly download
   URLs where available, overlap flags vs. `asm_lr`'s 18- and 30-donor cohorts.
 - `docs/data_sources.md` — how every download link and format claim was verified.
+
+## Related
+
+- [`hprc2_misc`](https://github.com/terencewtli/hprc2_misc) — sister repo: HPRC2 RNA / Hi-C /
+  Fiber-seq for these donors (orthogonal PMD validation), de novo meQTL mapping, and other
+  analyses outside the ASM-penetrance question.

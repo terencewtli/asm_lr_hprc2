@@ -831,6 +831,40 @@ discovery to λ < 1.2 donors, (2) re-test candidate loci in all donors with geno
 (3) define penetrance as the fraction of *tested and calibrated* donors carrying the call, and
 (4) compare recurrent-ASM loci against imprinted DMRs and HPRC2 mQTLs before interpreting.
 
+**ASM replication architecture (built 2026-09-18, `scripts/asm/C07a-d`; results pending).**
+Order agreed with the user: characterize loci that *do* replicate first (simpler), then model why
+the rest don't.
+- *Stage 1 (built):*
+  - donor tiers from chr20 λ_gc (discovery < 1.2: 69; replication 1.2–3: 105; inflated 3–8: 22;
+    excluded: 5, including NA19338 / NA20806, which have no null run);
+  - 118,796 cpg candidates + 229 Zink controls;
+  - re-test with genomic control + candidate-set BH;
+  - penetrance on replication-tier donors only.
+- *Stage 2 (built): genotype context per donor × candidate.* Het SNVs in the region and within
+  5 kb, nearest het (≤ 50 kb), het CpG-destroying/creating SNVs, cohort AF, and a lead-variant
+  hypergeometric test (ASM ~ het) with allele-oriented direction consistency.
+  Hap1/hap2 in the cohort VCF are the same labels as the ASM delta, so direction is directly
+  comparable across donors.
+- *Stage 3 (built, C07d): replicating-locus description.* Class × {Zink, HPRC2 S11 mQTL,
+  CGI-like, CpG o/e, TSS distance, ChromHMM group, PMD class, RT, lead AF, lead CpG effect}, and
+  nearest-het distribution for ASM vs non-ASM calls.
+- *Stage 4 (to build next): why loci fail to replicate.* For genotype_linked loci, a donor
+  without ASM should be homozygous at the lead variant. Model P(ASM | het at lead) per locus as a
+  function of:
+  - CpG architecture: CpG density; whether the variant destroys the CpG itself (then ASM is
+    trivially genetic).
+  - LD: r² between the lead and the region's other SNVs, computed from the phased cohort
+    haplotypes per superpopulation. A tag that is in LD in one population and not another
+    predicts population-specific replication.
+  - Allele frequency: power, since few hets means low penetrance by construction.
+  - Donor calibration: λ and PMD depth, a mixed model with donor random effects.
+  - Donor-level terms enter via the donor tables (`genotype/<chrom>.donor.tsv.gz`).
+  Deliverable: a per-locus decomposition of non-replication into "no het donors" / "LD tag lost"
+  / "calibration" / "unexplained".
+- Cross-check with de novo meQTLs from `hprc2_misc/scripts/call_meqtls` (the same CpG-cluster IDs
+  are the phenotypes there): genotype_linked ASM loci should be meQTL-enriched; imprinting loci
+  shouldn't.
+
 **E. Spatial heterogeneity of PMDs across donors (user idea, 2026-09-17 — not yet designed).**
 The question: beyond "how deep is this donor's domain compartment" (one number per donor, which
 is what everything so far measures), how does domain state vary *along the genome* between
@@ -905,6 +939,28 @@ shared limitations, not one story's problem.
 ---
 
 ## 3. Log (newest first)
+
+### 2026-09-17 (night, late) / 09-18 — ASM replication pipeline, spatial heterogeneity, S1 fixed
+- **Figure S1** rendered after two kernel failures. The second cause was libstdc++
+  (`CXXABI_1.3.9`, fastmap), fixed via `LD_LIBRARY_PATH` in `S1_figures_run.sh`.
+  - **Panel D was wrong:** it used the 10-donor `QC05` pilot het counts. Replaced with genome-wide
+    per-donor counts from the cohort VCF (2.42M median, 1.90–3.18M; AFR 3.11M, EAS 2.21M).
+  - PROGRESS's "6.77M het sites" headline is corrected. Re-render: job 14789860.
+- **qc/02b** (supersedes qc/02a, adds chemistry): the joint model leaves 70–75% of depth
+  unexplained; QC flag and chemistry are the only sizeable terms (RESULTS §3).
+- **Solo-WCGW** (`pmds/05a`): doubles the dynamic range, same covariate profile, hap r = 0.9998
+  (RESULTS §3). PROGRESS's "never aggregated" was stale; QC15 had done the first pass.
+- **Plan E, framings 1/3/4/6** (`pmds/06a`, RESULTS §2):
+  - depth + chemistry explain 90% of constitutive-bin variance;
+  - residual deviations are ~100–200 kb blocks;
+  - a small ancestry-linked residual domain axis (rPC5, R² 0.33 with superpopulation);
+  - domains deepen from the core; the depth-independent residual peaks at boundaries.
+  Framings 2/5/7 (boundary calls, Hi-C) are next.
+- **ASM replication** C07a–d built. C07a ran: 118,796 candidates. C07b–d are queued (jobs
+  14788189/14788192/14788197).
+- **Sister repo `hprc2_misc`** set up: RNA/Hi-C/Fiber-seq download (1.2 TB default set, running)
+  plus the orthogonal-validation plan; a de novo meQTL pipeline (QTLtools) submitted there. PMD
+  validation with RNA/Fiber-seq/Hi-C now lives in that repo's JOURNAL §2.
 
 ### 2026-09-17 (late) — ASM locus inventory, imprinting positive control
 - Per calibrated donor: 4,077 ASM regions = 0.21% of regions / 0.23% of CpGs, median |Δ| 0.26.

@@ -6,7 +6,7 @@ that were retracted along the way) is in `JOURNAL.md`; what has finished running
 
 Cohort: HPRC2 lymphoblastoid cell lines, haplotype-resolved ONT methylation.
 **202 donors with assemblies, 402 haplotypes, ~30x per CpG per haplotype**, hg38.
-Last updated 2026-09-17.
+Last updated 2026-09-18.
 
 ---
 
@@ -118,6 +118,31 @@ intergenic sequence (R²_state 0.68) and is absent from gene bodies (0.22).
 
 ![where outside-domain variance lives](figures/pmds/qc14_state_variance_outside_domains.png)
 
+**Beyond depth, what is left is local (~100 kb), and it concentrates at domain edges**
+(`pmds/06a`, qc18; plan E framings 1, 3, 4, 6). Each 10 kb bin was regressed on donor domain
+depth + chemistry:
+- **Depth + chemistry explain 90% of between-donor variance in constitutive bins** (33% in
+  never-domain bins).
+  - The residual variance is nearly flat across domain classes (0.00034–0.00061), so domains are
+    not more variable than the rest of the genome once global depth is removed.
+  - Explained fraction falls from 0.92 in the latest-replicating decile to 0.39 in the earliest.
+- **Length scale.** A donor's residual deviations are autocorrelated at r = 0.50 at 10 kb, 0.22
+  at 100 kb, 0.06 at 500 kb and 0.025 at 1 Mb (shuffled ≈ 0). Donor-specific differences come in
+  ~100–200 kb blocks, smaller than domains or compartments.
+- **Which domains.** PCA of residuals over domain bins: rPC1 carries 20% of residual variance and
+  tracks no covariate. rPC5 (2%) tracks superpopulation (R² 0.33, p = 6e-16). So there is a small
+  ancestry-linked "which domains are deep" axis, a candidate for cis-genetic effects.
+- **Position within a domain** (metagene over 621 constitutive domains ≥ 300 kb):
+  - The core carries more between-donor variance and deepens more per unit of donor depth
+    (slope −136 vs −123 at the outer 12.5%). Domains deepen from the middle; they are not
+    eroding inward from the edges.
+  - The depth-independent residual is ~20% higher at the edges (3.9 vs 3.2) and highest just
+    outside the boundary.
+  - Whatever varies between donors beyond depth sits at the boundaries. Per-donor boundary calls
+    (plan E.2/E.7) are the next build.
+
+![spatial heterogeneity](figures/pmds/qc18_spatial_heterogeneity.png)
+
 ---
 
 ## 3. The domain map is replication timing; the donor-to-donor depth is still unexplained
@@ -157,6 +182,26 @@ into non-constitutive bins all correlate at r = 0.97–0.99. Domains deepen in p
 not move. The open question is therefore what sets a line's cumulative division history, which
 nothing in this dataset measures directly. The solo-WCGW clock (3.39M sites annotated; deepens
 NA19338's domains from 36.6% to 15.0% mCG) is the sharpest available handle.
+
+**Even jointly, measured covariates leave ~70% of depth unexplained** (`qc/02b`, qc17). A joint
+model on complete cases (chemistry + superpopulation + sex + passage + established + HPRC2 QC flag,
+n = 152) gives R² 0.28 for constitutive-domain depth and 0.30 for modbed global mCG. Chemistry
+accounts for 6–9 points of that. The HPRC2 methylation QC flag has the largest partial R² (0.22 for
+depth), but it flags the extreme donors, so it is a consequence of depth, not a cause. Within
+R9.4.1 alone, nothing but superpopulation (R² 0.06) and the QC flag passes R² 0.02 for depth.
+Passage, EBV transcription, XIST skew and sex are all ≤ 0.01.
+
+**The solo-WCGW clock doubles the dynamic range but has the same covariate profile** (`pmds/05a`,
+qc18).
+- R9.4.1 coefficient of variation: 0.160 vs 0.084 for the constitutive level; 0.129 vs 0.065 for
+  the domain/never-domain ratio.
+- Correlation with all-CpG depth is r = 0.947.
+- hap1/hap2 agree at r = 0.9998, so it is a donor property, not noise.
+- It is not less chemistry-sensitive in a way that matters: constitutive-level R² 0.15 vs 0.21,
+  depth R² 0.22 vs 0.17, domain/never-domain ratio 0.178 for both.
+- No covariate is associated with it that isn't associated with all-CpG depth.
+
+So the clock sharpens the phenotype without pointing at a driver.
 
 ---
 
@@ -261,6 +306,30 @@ calibrated* donors, and anchor against imprinted DMRs and HPRC2 mQTLs.
 
 ---
 
+## 8. ASM replicability — pipeline built, running (2026-09-18)
+
+Following the §7 recipe, `scripts/asm/C07a-d` implement discovery → replication.
+- **Discovery:** 69 donors with chr20 λ_gc < 1.2 define 118,796 candidate regions (any ASM call),
+  plus the 229 Zink DMRs as positive controls.
+- **Re-test:** every donor is re-tested at the candidates with per-donor genomic control and
+  candidate-set BH.
+- **Penetrance:** computed on the 105 replication-tier donors only (1.2 ≤ λ ≤ 3), which played no
+  part in choosing candidates. Also reported within R9.4.1.
+- **Genotype context** (phased cohort VCF, same hap1/hap2 labels as the ASM delta): het SNVs
+  in/near each region and the distance to the nearest one; CpG-destroying/creating variants;
+  cohort allele frequency.
+- **Lead variant:** the SNV whose heterozygosity best predicts ASM across donors. Its
+  allele-direction consistency separates a cis genetic effect (~1) from parent-of-origin
+  imprinting (~0.5).
+- **Classes:** imprinting, genotype_linked, genotype_indep, other, sporadic, private — compared on
+  imprinting / HPRC2-mQTL / ChromHMM / TSS / CpG-architecture overlap.
+
+Candidate recurrence among discovery donors: 78,774 in one donor, 30,474 in 2–5, 8,097 in 6–20,
+1,451 in > 20. Only 0.7% of candidates lie within 10 kb of a Zink DMR, 4.9% overlap an HPRC2
+promoter mQTL, and 1.9% are CGI-like. Results pending (C07b–d queued).
+
+---
+
 ## Where the data lives
 
 | what | path |
@@ -268,6 +337,8 @@ calibrated* donors, and anchor against imprinted DMRs and HPRC2 mQTLs.
 | Donor × CpG matrices (union CpGs; `n_meth`, `n_total`; all + het-filtered) | `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz` — 30.9M CpGs × 402 haplotypes |
 | ASM calls / genome-wide merge | `results/asm/calls/`, `results/asm/genome/` |
 | ASM empirical null | `results/asm/null/`, `results/qc/data/asm_null_vs_real_chr20.tsv` |
+| ASM replication (tiers, candidates, re-tests, genotype context, classes) | `results/asm/replication/` |
+| Covariate variance tables / spatial heterogeneity / solo-WCGW | `results/qc/data/qc17/`, `results/qc/data/qc18/` |
 | Genome-wide PMD calls (native) | `data/pmds/<s>/<s>_hap<h>.pmd.bed` |
 | 10 kb bin matrix, domain frequency, PCA | `results/meth_bins/` |
 | RT / LAD annotation | `results/meth_bins/annotations/rt_lad_10kb.tsv.gz` |
