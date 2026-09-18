@@ -20,6 +20,11 @@ cd "$PROJDIR/notebooks/final_figures/figure_s1/python"
 time jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 \
     --ExecutePreprocessor.kernel_name=allcools figure_s1_qc_python.ipynb
 
+# R 4.1.0 links against MKL; without the module its shared libs are missing and the IRkernel
+# dies with "Kernel died before replying to kernel_info" (cost one run, 2026-09-17).
+source /u/local/Modules/default/init/modules.sh
+module load R/4.1.0
+
 echo "$(date): S1 R"
 cd "$PROJDIR/notebooks/final_figures/figure_s1/R"
 time jupyter nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=7200 \

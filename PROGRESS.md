@@ -21,7 +21,6 @@ Last updated: 2026-09-17 ~16:00
 | PMD QC + mQTL + variance | `results/meth_bins/qc_genetics/` | — | complete (B03a) |
 | RT / LAD annotation | `results/meth_bins/annotations/rt_lad_10kb.tsv.gz` | 263,774 bins | complete (B06a) |
 | PMD metagene profiles | `results/pmd_metagene/per_hap/` | 402/402 | complete (A01f) |
-| Solo-WCGW per hap | `results/meth_bins/solo_wcgw/per_hap/` | 217/402 | **running** (B05a, job 14779380) |
 | Variant density per 10kb | `results/meth_bins/variant_density/` | 22/22 | complete |
 | ASM calls per (sample, chrom) | `results/asm/calls/` | 4410/4444 | 12 real gaps resubmitted (14780506); 22 are HG00272 (no chain, permanent) |
 | Het-filtered per-CpG counts | `results/asm/cpg/` | 4413 | complete |
@@ -31,8 +30,10 @@ Last updated: 2026-09-17 ~16:00
 | XIST promoter skew | `results/qc/data/xist_promoter_skew.tsv` | 96 females | complete (M03) |
 | RNA markers + EBV | `results/qc/data/rna_markers_wide.tsv` | 200 donors | complete (R01a); 29 donors have no RNA file |
 | Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge (G03) running |
-| Molecule-level QC (chr20) | `results/qc/data/molecule_qc/` | 1/202 | **queued** (Q01a, job 14781764) |
-| Full 1000G PCA (3,202 samples) | `reference/1000G/pca/g1k_full/` | — | **queued** (job 14781790) |
+| Solo-WCGW per hap | `results/meth_bins/solo_wcgw/per_hap/` | 402/402 | complete |
+| Molecule-level QC (chr20) | `results/qc/data/molecule_qc/` | 201/202 | complete |
+| Full 1000G PCA (3,202 samples) | `reference/1000G/pca/g1k_full/pca_result.eigenvec` | 3,202 | complete |
+| Figure S1 QC table | `csv/figure_s1/s1_{donor,hap}_qc.csv` | 201 donors x 52 cols | python done; R panels rerunning (job 14783096) |
 | PMD coverage-downsampling test | `results/pmd_downsample/` | — | **queued** (A01g, job 14781691) |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
@@ -78,6 +79,13 @@ read-length/PCLAI pilot, the chr20 windowed-PMD and HMM-comparison pilots, and t
 variance-by-annotation notebook — the last being a true duplicate of `pmds/02b`, which does the
 same decomposition genome-wide with corrected input.
 
+Figure S1 QC table headline numbers (201 donors, cohort-wide): per-CpG depth 30.2x mean
+(15.7-41.6); 26.46M hg38 CpGs per haplotype; global mCG 0.662 (0.415-0.748); 6.77M het sites per
+donor (6.16-8.77M); median het-site spacing 218 bp; **59 het sites and 68,747 het-CpG linkages per
+molecule**; **94.3% of reads carry >=1 het site and 94.5% survive the full filter**; hap1-vs-hap2
+global mCG difference 0.003. By superpopulation, AFR leads on heterozygosity (8.77M sites, 97.2%
+read retention) and EAS trails (6.18M, 93.1%) — the same axis that drives ASM power.
+
 Cohort-wide results from the rebuilds (2026-09-17):
 - PCLAI ancestry PCs for 228 donors; hap1-vs-hap2 PC1 correlation 0.993 (internal consistency).
 - Measured vs HPRC2-reported coverage, 197 donors: median ratio 0.92, but **38 donors below 0.8
@@ -115,6 +123,11 @@ Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 - Array scripts have their own skip-if-exists check — update it when the Python output path
   changes, or every task silently skips (cost one full G02 rerun).
 - `pkill -f <pattern>` also matches the wrapper shell running the command.
+- R 4.1.0 links against MKL: a qsub job must `source /u/local/Modules/default/init/modules.sh;
+  module load R/4.1.0` before nbconvert, or the IRkernel dies with "Kernel died before replying
+  to kernel_info" (the missing lib is `libmkl_gf_lp64.so`).
+- `domain_frequency_10kb.tsv.gz` and the variant-density tables both have an `n_donors` column;
+  merging them silently produces `n_donors_x/_y` and a later KeyError.
 
 ## Next-session checklist
 
