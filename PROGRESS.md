@@ -129,10 +129,32 @@ Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 - `domain_frequency_10kb.tsv.gz` and the variant-density tables both have an `n_donors` column;
   merging them silently produces `n_donors_x/_y` and a later KeyError.
 
-## Next-session checklist
+## Next-session checklist (session closed 2026-09-17 ~17:30)
 
-1. `qstat -u terencew`; then check the counts table above.
-2. Held/queued: QC15 (14779515), QC16 (14780472), C05a (14779512), U01c hub rebuild (14778024).
-3. Solo-WCGW (14779380) and the ASM empirical null (14780466) are the two inputs blocking the
-   PMD-clock and ASM-calibration write-ups.
-4. Re-run `U01a`/`U01b` after any new bigWigs, and re-execute QC12 for the metagene section.
+**Start here — results that landed but nobody has looked at yet:**
+1. **Solo-WCGW, 402/402 haplotypes** (`results/meth_bins/solo_wcgw/per_hap/`). The mitotic-clock
+   metric is computed but never aggregated. Compare solo-WCGW domain depth against all-CpG depth
+   per donor, check whether it tightens the continuum and whether it is less chemistry-sensitive,
+   then write it into RESULTS §3. This is the single most valuable unlooked-at result.
+2. **PMD downsampling (A01g), done, 4 summaries** (`results/pmd_downsample/`). Already read and
+   written into RESULTS §1: calls stable to 10x (Jaccard 0.94-0.95), so 30x is saturated and
+   diploid pooling is unnecessary. Nothing further needed unless more donors are wanted.
+3. **Genome-wide per-donor VCFs + cohort merge** (`data/vcf/per_donor_gw/` 201/202,
+   `data/vcf/cohort_gw/all_donors.snps.vcf.gz`, 34.2M variants). Never used yet — this is the
+   input for genotype-association work on ASM/mQTL.
+4. **Figure S1 QC table** (`csv/figure_s1/s1_donor_qc.csv`, 201 donors x 52 metrics) — numbers are
+   in this file's rebuild section; the R panels still need to render (job below).
+
+**Jobs left running at session close (they survive; check `qstat -u terencew` first):**
+
+| job | what | why it matters |
+|---|---|---|
+| 14783096 | S1_figures (python done; R panels, MKL fix applied) | supplementary QC figure |
+| 14783097 | QC15 `pmds/04a` (n_donors merge fixed) | RT/LAD + solo-WCGW + variant-density write-up |
+| 14781797 | QC16 `asm/01a` | ASM calibration dashboard, donor QC flags |
+| 14783105 | C05a (bool-response fix applied) | is ASM concentrated in domains, genetic vs stochastic |
+| 14783106 | U01c (memory raised to 6G after OOM) | hub rebuild + QC12 metagene re-execution |
+
+**Then:** the pending analyses in `JOURNAL.md` §2 (A-E), of which E (spatial heterogeneity of
+PMDs, incl. within-domain positional variability and boundary conservation) and the
+RNA/Fiber-seq/Hi-C validation are the user's stated next direction for the PMD manuscript.

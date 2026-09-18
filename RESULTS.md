@@ -44,8 +44,20 @@ predicts the calls (corr with PMD burden +0.09, with domain contrast +0.10).
 - pooling is not free: the two haplotypes are assembled separately, so it requires projecting
   both into a common reference first, and it discards exactly the haplotype resolution the ASM
   arm of the project needs.
-A downsampling test (thin each haplotype to 20/15/10/5x and re-call) is running to state the
-coverage-sufficiency point empirically rather than by reference to the tool's recommendation.
+**Downsampling proves the point empirically** (A01g, NA19338 + HG00097, both haplotypes; thin the
+methcounts and re-call): PMD calls are essentially unchanged down to 10x and degrade only mildly
+at 5x.
+
+| depth | Jaccard vs full-depth calls | PMD burden (Gb) |
+|---|---|---|
+| 20x | 0.97 | 1.54-1.89 |
+| 15x | 0.95 | 1.49-1.87 |
+| 10x | 0.94-0.95 | 1.55-1.90 |
+| 5x | 0.89-0.92 | 1.69-1.86 |
+
+At the cohort's actual depth (median 29.7x, min 15.6x) the calls are saturated, so pooling the two
+haplotypes into a diploid methylome would not change the domain map — it would only cost
+haplotype resolution.
 
 **Chemistry is the dominant technical covariate and is NOT harmonized.** The modbeds use each
 donor's original basecalls: 156 donors R9.4.1/Guppy, 73 R10.4.1/Dorado (HPRC2 Supp S6). Verified

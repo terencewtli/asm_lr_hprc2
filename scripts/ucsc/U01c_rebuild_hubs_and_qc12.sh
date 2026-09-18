@@ -1,7 +1,7 @@
 #!/bin/bash
 #$ -N U01c_rebuild_hubs_and_qc12
 #$ -cwd
-#$ -l h_data=2G,h_rt=4:00:00
+#$ -l h_data=6G,h_rt=4:00:00   # 2G/slot OOM-killed the QC12 kernel, 2026-09-17
 #$ -pe shared 10
 #$ -hold_jid A02a_methcounts_to_bigwig,A01f_pmd_metagene
 #$ -o /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/logs/U01c_rebuild_hubs_and_qc12.$JOB_ID

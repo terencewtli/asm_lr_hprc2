@@ -52,7 +52,7 @@ def main() -> None:
     mq_bins = set(map(tuple, mq[['chrom', 'bin_start']].drop_duplicates().values))
 
     d = rp.merge(freq, on=['chrom', 'bin_start'], how='left').merge(rt, on=['chrom', 'bin_start'], how='left')
-    d['has_mqtl'] = [(c, b) in mq_bins for c, b in zip(d.chrom, d.bin_start)]
+    d['has_mqtl'] = np.array([(c, b) in mq_bins for c, b in zip(d.chrom, d.bin_start)], dtype=int)
     d['asm_rate'] = d.n_asm_all / d.n_tested_all
     d = d[d.n_tested_all >= 50]
     log(f'{len(d):,} regions tested in >=50 donors; {d.n_asm_all.sum():,} donor-level ASM calls')
@@ -80,7 +80,7 @@ def main() -> None:
 
     # mQTL enrichment of recurrent ASM, matched on class and CpG count
     d['cpg_bin'] = pd.qcut(d.n_cpg_ref, 5, labels=False, duplicates='drop')
-    d['recurrent'] = d.asm_rate >= 0.1
+    d['recurrent'] = (d.asm_rate >= 0.1).astype(int)
     fit = smf.logit('has_mqtl ~ recurrent + C(class_pmd) + C(cpg_bin)', d.dropna(subset=['class_pmd'])).fit(disp=0)
     enr = pd.DataFrame({'term': fit.params.index, 'OR': np.exp(fit.params.values), 'p': fit.pvalues.values})
     enr.to_csv(GEN / 'asm_mqtl_enrichment.tsv', sep='\t', index=False)
