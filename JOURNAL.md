@@ -751,6 +751,18 @@ rm -r /u/project/cluo/terencew/claude/project_ideas/asm_lr_hprc2/results/all_don
 
 ## 2. Planned analyses
 
+**Priorities (agreed with the user 2026-09-17/18; operational detail in PROGRESS checklist):**
+1. **ASM replicability, replicating loci first.** Read the C07d output (class summary,
+   nearest-het distribution), then make an `asm/02a` figures notebook covering replicating vs
+   private loci: imprinting, HPRC2 mQTL and functional (ChromHMM/TSS) overlap, distance to the
+   nearest het SNP. Then build stage 4, why loci fail to replicate (CpG architecture, LD, AF,
+   calibration); see "ASM replication architecture" below.
+2. **PMD manuscript, plan E framings 2/5/7.** Per-donor boundary calls: boundary mobility and
+   conservation, and whether the boundary-localized residual found in `pmds/06a` is boundary
+   movement. Hi-C compartments come from hprc2_misc.
+3. **Cross-repo:** de novo meQTLs (hprc2_misc) vs PMDs and vs the ASM genotype_linked class; the
+   RNA/Fiber-seq/Hi-C PMD validation (hprc2_misc JOURNAL §2).
+
 **A. Sample × genomic-bin methylation matrix.**
 - Windows of 10kb (and 50kb) × ~200 donors, per haplotype and pooled.
 - Per bin: mean CpG methylation, number of CpGs, coverage, and variance / fraction of reads
