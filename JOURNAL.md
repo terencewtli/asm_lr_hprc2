@@ -952,6 +952,19 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-19 (cont.) — C08c first 9 chromosomes: the 1e-4 lead threshold is ~2x too strict
+- **[verified] 34,643 regions across chr11-16, 19, 20, 21 (B=1000).** Of 5,376 regions with
+  `lead_p` < 1e-4, **zero fail the permutation at p >= 0.05**, on every one of the nine
+  chromosomes. Median permuted minimum-p 0.060.
+- **[verified] The threshold is over-conservative, not liberal.** Permutation p < 0.05 calls
+  11,346 regions vs 5,376 for the 1e-4 rule — **2.11x**, strikingly consistent per chromosome
+  (1.92-2.24x). So C07d is discarding roughly half the real lead associations.
+- **[verified] But `genotype_linked` only grows ~16%, not 111%**, because most extra leads sit at
+  non-replicating regions. Requiring p_replicate < 1e-3 and dir >= 0.8 as C07d does, the
+  permutation adds 287 loci against 1,745 currently classed on these chromosomes. Still worth
+  taking — ~16% more cis-genetic ASM for §13/§14 at the cost of rerunning the classification.
+- chr21 confirmed re-run at B=1000 (min p_perm 0.001), so the earlier B=200 pilot is gone.
+
 ### 2026-09-19 — C09a haplotype background: the cis mechanism has first evidence (chr21)
 - **[verified] chr21 pilot, 85 genotype_linked loci.** Among lead-variant heterozygotes, testing
   ASM against the background alleles carried *in phase* with the lead ALT: **11.8% of loci at

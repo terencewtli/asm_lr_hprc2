@@ -516,14 +516,33 @@ show the sensitivity table.
 
 ## 12. Two method checks that came back clean
 
-**The lead-variant scan is conservative, not anti-conservative** (`C08c`, chr21, 1,000
-permutations of which calibrated donors carry the ASM call, holding the variant set, het matrix
-and K fixed). C07d thresholds `lead_p` at an uncorrected 1e-4 although it is a minimum over a
-median of 75 SNVs, which looked like a ~5% false-lead rate by naive Bonferroni. It is not:
-**0 of 319 chr21 regions with lead_p < 1e-4 fail the permutation at p ≥ 0.05**. The permuted
-minimum-p has median 0.057, so LD collapses the effective number of independent tests to a
-handful and 1e-4 sits ~570× beyond the null median. The naive Bonferroni estimate was wrong
-because it assumed independence. Genome-wide run pending (job 14808255).
+**The lead-variant scan is conservative, not anti-conservative — and over-conservative by ~2x**
+(`C08c`, **9 of 22 autosomes landed**: chr11-16, 19, 20, 21; 34,643 regions; 1,000 permutations
+of which calibrated donors carry the ASM call, holding the variant set, het matrix and K fixed).
+C07d thresholds `lead_p` at an uncorrected 1e-4 although it is a minimum over a median of 75
+SNVs, which looked like a ~5% false-lead rate by naive Bonferroni. Both halves of that guess were
+wrong:
+
+| | value |
+|---|---|
+| regions with `lead_p` < 1e-4 | 5,376 (15.5%) |
+| **of those, failing the permutation at p ≥ 0.05** | **0 (0.00%)** |
+| regions with permutation p < 0.05 | **11,346 (32.8%)** |
+| ratio, permutation vs the 1e-4 rule | **2.11×** (per-chromosome range 1.92–2.24) |
+| median permuted minimum-p | 0.060 |
+
+Not one of the 5,376 hits fails, on any of the nine chromosomes — LD collapses ~75 nominal tests
+to a handful, so 1e-4 sits far beyond the null median and the naive Bonferroni was wrong because
+it assumed independence. The more useful finding is the other direction: a permutation-calibrated
+threshold calls **2.1× as many lead variants**, so the 1e-4 rule is discarding about half of the
+real lead associations.
+
+**That does not translate into a 2.1× larger `genotype_linked` class**, because most of the extra
+leads sit at regions that do not replicate. Requiring replication (p_replicate < 1e-3) and
+direction consistency ≥ 0.8 as C07d does, the permutation adds **287 loci on these nine
+chromosomes against 1,745 currently classed `genotype_linked` — about +16%**. That is the number
+to quote, and it is worth taking: it is ~16% more cis-genetic ASM to carry into §13 and §14 at no
+cost beyond rerunning the classification. Remaining 13 chromosomes: arrays 14810798 / 14808255.
 
 **Reclassifying on imprinted domains moves 165 regions and confirms the diagnosis** (`C08d`;
 84 domains built by merging Zink DMRs within 1 Mb and padding 100 kb; median span 201 kb, max
