@@ -46,6 +46,7 @@ Last updated: 2026-09-18 ~19:30
 | C08a merged ASM locus sizes | `results/asm/model/asm_locus_size_*.tsv`, `asm_merged_loci.tsv.gz` | 267,208 loci / 69 donors | complete 2026-09-18 |
 | C08b adjusted penetrance | `results/asm/model/penetrance_adjusted.tsv.gz`, `donor_propensity.tsv`, `penetrance_null_sensitivity.tsv` | 119,024 regions x 189 informative donors | complete 2026-09-18 |
 | C08c lead-variant permutation | `results/asm/model/lead_perm/<chrom>.lead_perm.tsv.gz` | **9/22** (chr11-16, 19-21; all B=1000) | tasks 1-10 of 14808255 died on the bcftools PATH bug (below), resubmitted **14810798**; result so far in RESULTS §12 — 0/5,376 hits fail the permutation and the 1e-4 rule is ~2.1x over-conservative |
+| C10a epiallele NME | `results/asm/model/epiallele/<sample>.nme.tsv.gz` | 1/69 (HG00097 is a **300-locus benchmark, not a full run**) | array **14811310** queued, discovery tier only; C10b holds the pre-registered tests |
 | C09a haplotype background | `results/asm/model/hap_background/<chrom>.hapbg.tsv.gz` | 0/22 | genome-wide **14810779** still queued (B=1000); chr21 pilot was removed, so the array will produce all 22 |
 | C08d imprinted-domain reclass | `results/asm/model/candidates_reclassified.tsv.gz`, `imprinted_domains.bed`, `reclass_summary.tsv` | 84 domains, 165 regions moved | complete 2026-09-18 |
 
@@ -195,6 +196,12 @@ Cohort-wide results from the rebuilds (2026-09-17):
 Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 
 ## Recurring gotchas (cost time at least once)
+
+- **`results/asm/model/epiallele/HG00097.nme.tsv.gz` is a 300-locus benchmark, not a real run.**
+  Written by hand while sizing C10a; the array's skip-if-exists will leave it truncated. Remove
+  it and re-run that one task:
+  `rm results/asm/model/epiallele/HG00097.nme.tsv.gz` then
+  `qsub -t $(grep -n '^HG00097$' txt/samples/c10a_discovery_donors.txt | cut -d: -f1) scripts/asm/C10a_epiallele_nme_array.sh`
 
 - **`lead_pos` on disk is CORRUPT in both `C07c` and `C07d` outputs — do not use it.** Both write
   with `float_format='%.5g'`, which truncates genomic coordinates to five significant figures:

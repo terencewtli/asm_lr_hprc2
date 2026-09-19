@@ -952,6 +952,40 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-19 (cont.) — C10a/C10b: epiallele entropy, scoped to one pre-registered question
+User asked whether per-donor epiallele analyses exist and whether they would need a separate
+caller, wanting the original epiallele interest served without bloating the paper.
+
+- **[verified] No epiallele analysis exists in this project.** `asm_lr`'s W12 was one donor;
+  HPRC2's `H04_epiallele_classification.py` is a never-run pilot. The only cousin in production
+  is `read_sd` (chr20), already load-bearing as the lambda mechanism (§10).
+- **[verified] It does NOT need a separate caller.** `ont_asm_caller/pattern.py` already
+  implements the CPEL device for long reads — MML / NME / PDM, Ising chain by transfer matrix +
+  L-BFGS, plus `read_fraction_ks` — and is exported from `__init__`. More to the point, `C02a`
+  already BUILDS the per-read x per-CpG matrix (`rid, pos, call`) and discards it one line later
+  in `read_fracs`. The epiallele signal is exactly what that collapse throws away, as the
+  2026-09-05 calibration critique already noted.
+- **[note] Citation check.** The relevant prior work is **Abante, Fang, Feinberg & Goutsias,
+  Nat Commun 2020 (CpelAsm.jl)**, with Onuchic et al. for the non-parametric comparator. The
+  `ont_asm_caller` README miscites this as "Jiang et al." — fix when next touched. A "Rosenski
+  2025" reference the user mentioned could NOT be verified and nothing here is framed against it.
+- **[scope decision] NME only, replicating loci only, discovery tier only, no locus calling.**
+  T_PDM is skipped (Monte-Carlo, needs null.py's stratified machinery, different question).
+  Treating epiallele ASM as a parallel DISCOVERY axis is explicitly out of scope — that needs its
+  own imprinting/mQTL validation and is a separate paper.
+- **[verified] Benchmark (HG00097, 300 chr1 loci) shows a working statistic and a working null:**
+  t_nme median **0.0656 vs null 0.0312 (2.1x)**, and by class imprinting 0.123 vs 0.030 (**4.1x**),
+  genotype_linked 0.067 vs 0.029 (2.3x), other 0.048 vs 0.034 (1.4x). Median NME 0.765 bits/CpG.
+  ~23.6 ms per chain fit. Array 14811310 (69 donors, -tc 20).
+- **[pre-registered, before the array finished] `C10b` holds the tests**, so the analysis cannot
+  drift into whatever the data happens to show: H1 per-locus NME vs `pen_het` among
+  genotype_linked (two-sided — direction is the result, not the hypothesis); H2 replication of
+  W12's "proximal ASM is more deterministic" (one-sided); H3 within-locus, ASM-calling vs
+  non-calling donors on locus-centred NME. **A calibration gate runs first**: if `t_nme` does not
+  separate from its own empirical null, none of H1-H3 are interpretable and the section is not
+  written. `pattern.py` has a simulation benchmark but no real-data validation, so this gate is
+  the actual cost of the analysis, not the compute.
+
 ### 2026-09-19 (cont.) — the genetics arm, measured: ancestry structures heterozygosity, not ASM
 User asked directly whether there are superpopulation-specific loci, how much variation sits
 *within* superpopulations, and whether PC1 gives a usable continuum. Measured rather than
