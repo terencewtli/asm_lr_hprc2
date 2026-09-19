@@ -29,6 +29,7 @@ in parallel as separate papers; §1 (resource and its technical limits) is share
 11. Can penetrance be estimated without throwing away most of the cohort?
 12. What sets ASM penetrance, and is any of it ancestry-linked?
 13. Is the incomplete penetrance cis and haplotypic?
+14. Is ancestry a useful axis for ASM at all?
 
 ---
 
@@ -677,6 +678,78 @@ will look like "haplotype background" when it is really just a better tag. Disti
 background hit to be checked against a re-scan with the background variant as lead. Until that
 is done, read this as *the lead variant is not the whole story*, which is weaker than *haplotype
 background modulates a fixed causal effect*.
+
+---
+
+## 15. The genetics arm, measured: ancestry structures heterozygosity, not ASM
+
+The project's framing assumes ancestry is a useful axis for ASM. Measured on 197 donors with
+PCLAI ancestry PCs, it is a useful axis for *heterozygosity* and a poor one for *ASM*. Stating
+this plainly is better than letting a reviewer find it, and it is itself the answer to the
+proposal's "statistical vs biological impact on ASM calling between populations".
+
+### Within-superpopulation variation dominates everything except heterozygosity
+
+| quantity | between-superpop R² | within-superpop | within-group CV |
+|---|---|---|---|
+| het SNVs per donor | **0.927** | 7% | 0.01–0.09 |
+| ASM count (discovery tier) | 0.141 | **86%** | 0.26–0.42 |
+| λ_gc | 0.019 | **98%** | 0.45–1.14 |
+
+**Heterozygosity is nearly a deterministic function of the superpopulation label**; ASM and λ are
+overwhelmingly within-group. That is the structural reason every ancestry effect on ASM in §6–7
+evaporated under adjustment: the variance is not there to explain.
+
+**Ecological-correlation caveat — important, and it limits what can be claimed.** Because
+within-group heterozygosity variance is tiny (CV 0.01–0.02 in AFR/EAS/EUR/SAS), there is almost
+no within-group contrast. At the **individual donor** level heterozygosity explains only
+**R² = 0.056** of ASM count in the discovery tier. The "ASM scales ~1:1 with heterozygosity"
+statement in §6 comes from comparing *group medians* (AFR/EAS 1.34× ASM against 1.41× het) — five
+points. It is sound at the group level and nearly powerless at the individual level, and the two
+must be reported separately. No individual-level "ASM per heterozygous site" claim is supported.
+
+### PCLAI PC1 is not a continuum — it is an African/non-African axis
+
+| | PC1 median | within-group SD |
+|---|---|---|
+| AFR | −1.74 | 0.156 |
+| AMR | +0.38 | 0.170 |
+| EUR | +0.45 | **0.004** |
+| SAS | +0.48 | **0.005** |
+| EAS | +0.69 | **0.002** |
+
+EAS, EUR and SAS collapse onto essentially one point; only AFR (and AMR, by admixture) carries
+spread. And **corr(PC1, het SNVs) = −0.969**, i.e. PC1 and heterozygosity are the same variable
+in this cohort and cannot be separated.
+
+Consequences, discovery tier:
+- ASM per Mb of heterozygosity across PC1 quartiles is flat and non-monotonic: 1421 / 1981 /
+  1663 / 1508.
+- **PC1 adds nothing over het count** (ΔR² = 0.003, p = 0.65); het alone R² 0.056, PC1 alone 0.042.
+- **PC2 does add** (R² 0.056 → 0.156, comparable to the full superpopulation factor), so whatever
+  separates the non-African groups carries signal — but at n = 68 with 4 df this is fragile and
+  should be re-tested on the full calibrated set before it is used.
+
+So "stratify by PC1" is not available as an analysis here; it would only re-derive heterozygosity
+and would resolve one group.
+
+### Superpopulation-specific loci exist, are all AFR, and are allele-frequency-driven
+
+Replicating loci with ≥10 tested donors in ≥4 superpopulations (10,706 loci). Penetrance spread
+across superpopulations (max − min) has median 0.184, 99th percentile 0.462. Defining
+"dominated" as top superpopulation ≥ 0.30 and every other ≤ 0.05:
+
+- **28 loci, all 28 AFR** (26 `genotype_linked`, 1 `genotype_indep`, 1 `other`).
+- Lead-variant heterozygote frequency **0.432 in AFR vs 0.007 elsewhere**.
+- **26/28 (93%) are explained by the causal variant not segregating outside AFR.**
+- **2 loci** have the variant present everywhere and ASM in only one group — the modifier
+  candidates.
+
+This is real population genetics — African haplotype diversity carries regulatory variants the
+other groups lack — but it is **not** a regulatory difference between populations. The honest
+summary is that ancestry-specific ASM is an allele-frequency phenomenon, with n = 2 exceptions.
+The softer 7.6%-vs-5% heterogeneity signal in §13 is the same question asked with more power and
+still needs the `C09b` permutation before it is quotable.
 
 ---
 

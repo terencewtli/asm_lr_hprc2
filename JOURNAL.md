@@ -952,6 +952,47 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-19 (cont.) — the genetics arm, measured: ancestry structures heterozygosity, not ASM
+User asked directly whether there are superpopulation-specific loci, how much variation sits
+*within* superpopulations, and whether PC1 gives a usable continuum. Measured rather than
+assumed; RESULTS §15. The answers are mostly deflationary and belong in our own text.
+
+- **[verified] Within-superpop variance dominates.** Between-superpop R²: het SNVs **0.927**,
+  ASM count (discovery) 0.141, lambda_gc 0.019. Within-group CV for het is 0.01-0.09 vs 0.26-0.42
+  for ASM. Heterozygosity is near-deterministic given the label; ASM and lambda are not. This is
+  the structural reason every ancestry effect on ASM vanished under adjustment.
+- **[corrected] "ASM scales ~1:1 with heterozygosity" is a GROUP-level claim only.** Because
+  within-group het variance is tiny there is no within-group contrast, and at the individual
+  donor level het explains only **R² = 0.056** of ASM count. The 1.34x-vs-1.41x figure compares
+  five group medians. Sound at the group level, nearly powerless per donor — report separately,
+  and make no individual-level "ASM per het site" claim.
+- **[verified] PCLAI PC1 is not a continuum.** Within-group SD is 0.156 (AFR) and 0.170 (AMR) but
+  **0.002-0.005 for EAS/EUR/SAS** — they collapse to one point. corr(PC1, het) = **-0.969**, so
+  PC1 and heterozygosity are the same variable. ASM per Mb het across PC1 quartiles is flat and
+  non-monotonic (1421/1981/1663/1508); PC1 adds nothing over het (dR2 0.003, p 0.65). **PC2 does
+  add** (R2 0.056 -> 0.156) but at n=68/4df it is fragile. "Stratify by PC1" is not an available
+  analysis here.
+- **[verified] Superpopulation-dominated loci: 28, ALL AFR, 93% allele-frequency-driven.** Among
+  10,706 replicating loci with >=10 donors in >=4 superpops, 28 have top-superpop penetrance
+  >=0.30 with all others <=0.05. Lead het frequency 0.432 in AFR vs 0.007 elsewhere; 26/28 are
+  explained by the causal variant not segregating outside AFR. **Only 2** have the variant
+  everywhere and ASM in one group. Ancestry-specific ASM is an allele-frequency phenomenon, not a
+  regulatory difference between populations.
+- **[scope] Start writing.** The three results that determine what the paper is (§13 penetrance,
+  §14 mechanism, §9/§10 covariates) are in hand; what is still running is confirmation. Agreed
+  with the user that further validation should not gate drafting.
+- **[decision] No ASM re-call with PMD as a covariate.** The caller is a within-donor,
+  within-locus haplotype comparison — PMD status is identical on both haplotypes at a region and
+  cannot enter the test. PMD depth confounds the *downstream* cross-donor comparison only, which
+  is handled by conditioning (§9) and is already absorbed by C08b's propensity term.
+- **[planned] Rigor, ranked:** (1) allele-specific expression from HPRC2 Iso-Seq on the same
+  donors — orthogonal, in hand, tests function not concordance; worth re-opening the
+  transition-doc decision to scope Iso-Seq out, for this one use. (2) External replication
+  (GoDMC, deCODE ASM-QTLs, Onuchic/Tycko atlas) where the valuable number is how many loci are
+  NEW and whether those are enriched for AFR-frequent variants. (3) Fiber-seq allele-specific
+  accessibility. (4) Re-cut ChromHMM by penetrance rather than by class — cheap, and may supply
+  the chromatin correlate §13 currently lacks.
+
 ### 2026-09-19 (cont.) — C08c first 9 chromosomes: the 1e-4 lead threshold is ~2x too strict
 - **[verified] 34,643 regions across chr11-16, 19, 20, 21 (B=1000).** Of 5,376 regions with
   `lead_p` < 1e-4, **zero fail the permutation at p >= 0.05**, on every one of the nine
