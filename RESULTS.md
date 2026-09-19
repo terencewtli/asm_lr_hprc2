@@ -28,6 +28,7 @@ in parallel as separate papers; §1 (resource and its technical limits) is share
 10. What actually causes the per-donor inflation?
 11. Can penetrance be estimated without throwing away most of the cohort?
 12. What sets ASM penetrance, and is any of it ancestry-linked?
+13. Is the incomplete penetrance cis and haplotypic?
 
 ---
 
@@ -617,6 +618,49 @@ belongs in the paper as the anchor, not as a standalone positive-control result.
 
 ---
 
+## 14. Haplotype background: first evidence for a cis mechanism behind incomplete penetrance (chr21 pilot)
+
+`scripts/asm/C09a`. The §13 hypothesis: the lead SNV is a **tag**, not the cause. It sits on more
+than one local haplotype and only some of those carry whatever actually drives ASM — which would
+make penetrance a haplotype property and would explain the ancestry-differential signal for free,
+since haplotype frequencies differ by ancestry where tag-allele frequencies need not.
+
+Per locus, restricted to donors heterozygous at the lead variant: identify which haplotype carries
+the lead ALT allele, read every common background variant (AF ≥ 0.05) within ±25 kb **in phase
+with that allele**, and test ASM status against it. Calibrated by permutation from the outset
+(shuffle which carriers show ASM, recompute, B = 1,000) — the C08c lesson being that analytic
+thresholds over correlated variants are not trustworthy in either direction.
+
+**chr21 pilot (85 loci, median 68 carriers, median 102 background variants, B = 300):**
+
+| test | frac p < 0.05 | vs null | frac p < 0.01 | vs null |
+|---|---|---|---|---|
+| per-variant scan (`p_perm_best`) | **0.118** | **2.4×** | **0.047** | **4.7×** |
+| PC1 cluster split (`p_perm_cluster`) | 0.024 | 0.5× | 0.012 | 1.2× |
+
+And the effect size is large. Among loci at `p_perm_best` < 0.01, penetrance splits
+**0.619 on the permissive background vs 0.194 on the restrictive one — a lift of 0.42**, against
+an overall `pen_het` of 0.466 at the same loci. The background variant sits a median 7.8 kb from
+the lead.
+
+So at least some of §13's incomplete penetrance is **cis and haplotypic**: the same tag allele
+gives ASM on one haplotype and not on another. Extrapolating chr21's 4.7% to the full 6,053
+`genotype_linked` loci suggests ~250–300 loci, which is the right order to build the
+population-genetics analysis on. Genome-wide run submitted (14810779).
+
+The cluster test is *under* the null (0.5×), i.e. the PC1 median split is a crude binarisation
+that throws away the signal the per-variant scan finds. Report the per-variant scan; keep the
+cluster column only as a conservative cross-check.
+
+**Caveat, not yet addressed:** a background variant in strong LD with a *better* causal variant
+will look like "haplotype background" when it is really just a better tag. Distinguishing
+"multiple haplotypes at one causal site" from "the lead was simply the wrong SNV" needs the
+background hit to be checked against a re-scan with the background variant as lead. Until that
+is done, read this as *the lead variant is not the whole story*, which is weaker than *haplotype
+background modulates a fixed causal effect*.
+
+---
+
 ## Where the data lives
 
 | what | path |
@@ -626,6 +670,7 @@ belongs in the paper as the anchor, not as a standalone positive-control result.
 | ASM empirical null | `results/asm/null/`, `results/qc/data/asm_null_vs_real_chr20.tsv` |
 | ASM replication (tiers, candidates, re-tests, genotype context, classes) | `results/asm/replication/` |
 | ASM method fixes: merged locus sizes, adjusted penetrance, lead permutation, imprinted-domain reclass (C08a-d) | `results/asm/model/` |
+| Haplotype-background test (C09a) | `results/asm/model/hap_background/<chrom>.hapbg.tsv.gz` |
 | Covariate variance tables / spatial heterogeneity / solo-WCGW | `results/qc/data/qc17/`, `results/qc/data/qc18/` |
 | Genome-wide PMD calls (native) | `data/pmds/<s>/<s>_hap<h>.pmd.bed` |
 | 10 kb bin matrix, domain frequency, PCA | `results/meth_bins/` |

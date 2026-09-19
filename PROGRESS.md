@@ -45,7 +45,8 @@ Last updated: 2026-09-18 ~19:30
 | ASM method fixes (C08a-d) | `results/asm/model/` | — | see below |
 | C08a merged ASM locus sizes | `results/asm/model/asm_locus_size_*.tsv`, `asm_merged_loci.tsv.gz` | 267,208 loci / 69 donors | complete 2026-09-18 |
 | C08b adjusted penetrance | `results/asm/model/penetrance_adjusted.tsv.gz`, `donor_propensity.tsv`, `penetrance_null_sensitivity.tsv` | 119,024 regions x 189 informative donors | complete 2026-09-18 |
-| C08c lead-variant permutation | `results/asm/model/lead_perm/<chrom>.lead_perm.tsv.gz` | 1/22 (chr21 smoke test only) | **array 14808255 queued**; see gotcha below |
+| C08c lead-variant permutation | `results/asm/model/lead_perm/<chrom>.lead_perm.tsv.gz` | 0/22 | tasks 1-10 of 14808255 died on the bcftools PATH bug (below); resubmitted **14810798** (1-10), 14808255 (11-22) and 14809578 (21) still queued |
+| C09a haplotype background | `results/asm/model/hap_background/<chrom>.hapbg.tsv.gz` | 1/22 (chr21, B=300 pilot) | genome-wide **14810779** queued (B=1000); chr21 will be skipped by skip-if-exists — `rm` it to get the full B |
 | C08d imprinted-domain reclass | `results/asm/model/candidates_reclassified.tsv.gz`, `imprinted_domains.bed`, `reclass_summary.tsv` | 84 domains, 165 regions moved | complete 2026-09-18 |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
@@ -194,6 +195,21 @@ Cohort-wide results from the rebuilds (2026-09-17):
 Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 
 ## Recurring gotchas (cost time at least once)
+
+- **`lead_pos` on disk is CORRUPT in both `C07c` and `C07d` outputs — do not use it.** Both write
+  with `float_format='%.5g'`, which truncates genomic coordinates to five significant figures:
+  position 606,320 is stored as `6.0632e+05`, so the column cannot identify a variant. Cost a
+  full debugging cycle in C09a (87 of 97 chr21 loci silently dropped as "lead not found").
+  **The analyses are unaffected** — C07c held the position in memory — only the on-disk column
+  is wrong, so RESULTS §8/§13 numbers stand. C09a re-derives the lead from the genotypes instead
+  and reproduces the stored `lead_p` exactly (max |dlog10| = 0 over 85 chr21 loci), which is the
+  cross-check that proves the re-derivation right. **Fix properly when C07c is next touched:**
+  write integer columns with `%d` or drop `float_format` for them. Any other integer column in
+  these files (`lead_n_het`, `n_snv_5kb`, ...) is at risk above 99,999 — check before trusting.
+- **`bcftools` is not on the PATH inside the job environment.** C08c tasks 1-10 all died with
+  `FileNotFoundError: 'bcftools'`. Import `BCFTOOLS` from `C07c_candidate_genotypes` (it holds
+  the absolute path `/u/local/apps/bcftools/1.11/gcc-4.8.5/bin/bcftools`) rather than relying on
+  a bare name. Fixed in C08c/C09a 2026-09-19; tasks resubmitted as 14810798.
 
 - **C08c chr21 holds a smoke-test file with B=200, not B=1000.** It was written by hand while
   developing the script, and the array's skip-if-exists will therefore leave chr21 at the lower

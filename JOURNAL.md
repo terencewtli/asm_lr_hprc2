@@ -952,6 +952,33 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-19 — C09a haplotype background: the cis mechanism has first evidence (chr21)
+- **[verified] chr21 pilot, 85 genotype_linked loci.** Among lead-variant heterozygotes, testing
+  ASM against the background alleles carried *in phase* with the lead ALT: **11.8% of loci at
+  permutation p < 0.05 (2.4x null) and 4.7% at p < 0.01 (4.7x)**. Among the p < 0.01 loci,
+  penetrance is **0.619 on one haplotype background vs 0.194 on the other, lift 0.42**, against
+  pen_het 0.466 overall; background variant a median 7.8 kb from the lead. Extrapolates to
+  ~250-300 loci genome-wide. RESULTS §14. Genome-wide 14810779 submitted.
+- **[reported] The PC1-cluster variant of the test is under the null** (0.5x at p<0.05): a median
+  split on PC1 discards the signal the per-variant scan finds. Keep it only as a conservative
+  cross-check.
+- **[open] Cannot yet separate "haplotype background modulates a fixed causal effect" from "the
+  lead was simply the wrong SNV".** A background variant in strong LD with a better causal
+  variant produces the same signature. Needs a re-scan with the background variant promoted to
+  lead. Until then the claim is the weaker one: the lead variant is not the whole story.
+- **[verified, data bug] `lead_pos` is corrupt on disk in C07c and C07d outputs** —
+  `float_format='%.5g'` truncates coordinates to 5 significant figures (606320 -> `6.0632e+05`).
+  Found because C09a silently dropped 87 of 97 chr21 loci. **The analyses are unaffected** (the
+  position was held in memory); only the stored column is wrong, so §8/§13 stand. C09a
+  re-derives the lead and reproduces the stored `lead_p` with max |dlog10| = 0 across all 85
+  chr21 loci. PROGRESS carries the fix.
+- **[verified, infra bug] `bcftools` is not on the job PATH**; C08c tasks 1-10 died on it.
+  Both C08c and C09a now import the absolute path from C07c. Resubmitted 14810798.
+- Also replaced `scipy.stats.hypergeom` with a direct log-binomial computation in C09a — the
+  allcools env's scipy drops into a scalar branch and raises on some broadcast shapes. Verified
+  identical to scipy across 15 (n, a) cells before use.
+
+
 ### 2026-09-18 (night) — the actual result: incomplete penetrance of cis-ASM, and a scope call
 Prompted by the user asking, bluntly, whether this is shaking out methodological rather than
 biological given that the high-penetrance loci are all imprinting. Short answer: the premise is

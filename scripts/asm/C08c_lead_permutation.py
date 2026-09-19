@@ -49,9 +49,8 @@ def main() -> None:
         print('exists, skip:', dst)
         return
 
-    from C07c_candidate_genotypes import load_genotypes, VCF  # noqa: E402
+    from C07c_candidate_genotypes import load_genotypes, VCF, BCFTOOLS  # noqa: E402
     import subprocess
-    BCFTOOLS = 'bcftools'
 
     tiers = pd.read_csv(REP / 'donor_tiers.tsv', sep='\t')
     cand = pd.read_csv(REP / 'candidates.tsv.gz', sep='\t',
