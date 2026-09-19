@@ -6,7 +6,7 @@ what a future session must fix before trusting a directory. Update it whenever j
 it terse. `RESULTS.md`, `JOURNAL.md`, `JOURNAL.archive.md` and this file live only in this git
 mirror — edit them here; `sync_to_github.sh` does not copy them from the working directory.
 
-Last updated: 2026-09-18 ~00:15
+Last updated: 2026-09-18 ~19:30
 
 ## Output inventory
 
@@ -22,26 +22,26 @@ Last updated: 2026-09-18 ~00:15
 | RT / LAD annotation | `results/meth_bins/annotations/rt_lad_10kb.tsv.gz` | 263,774 bins | complete (B06a) |
 | PMD metagene profiles | `results/pmd_metagene/per_hap/` | 402/402 | complete (A01f) |
 | Variant density per 10kb | `results/meth_bins/variant_density/` | 22/22 | complete |
-| ASM calls per (sample, chrom) | `results/asm/calls/` | 4410/4444 | 12 real gaps resubmitted (14780506); 22 are HG00272 (no chain, permanent) |
+| ASM calls per (sample, chrom) | `results/asm/calls/` | 4420/4444 | complete except: 22 HG00272 (no chain, permanent) + **HG02280 chr13/chr16** — `data/het_snps/tmp_chr{13,16}/HG02280/` has the hap FASTAs but no `*_vs_*.paf` / `het_in_hap1.bed`, so H01 died mid-task there; rerun H01 for those two chroms, then C02a tasks 1949/1952 |
 | Het-filtered per-CpG counts | `results/asm/cpg/` | 4413 | complete |
 | **Donor × CpG matrices** | `results/asm/cpg_matrix/<chrom>.{all,hetfilt}.npz` | 44/44 | complete (C03a) |
 | Genome-wide ASM merge | `results/asm/genome/` | 201 donors | complete (C04a) |
 | ASM empirical null (chr20) | `results/asm/null/` | 199/202 | complete; summary `results/qc/data/asm_null_vs_real_chr20.tsv` |
 | XIST promoter skew | `results/qc/data/xist_promoter_skew.tsv` | 96 females | complete (M03) |
 | RNA markers + EBV | `results/qc/data/rna_markers_wide.tsv` | 200 donors | complete (R01a); 29 donors have no RNA file |
-| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge (G03) running |
+| Genome-wide per-donor VCFs | `data/vcf/per_donor_gw/` | 201/202 | complete; cohort merge done: `data/vcf/cohort_gw/all_donors.snps.vcf.gz` (870 MB + .tbi, 2026-09-17 15:25) |
 | Solo-WCGW per hap | `results/meth_bins/solo_wcgw/per_hap/` | 402/402 | complete |
 | Molecule-level QC (chr20) | `results/qc/data/molecule_qc/` | 201/202 | complete |
 | Full 1000G PCA (3,202 samples) | `reference/1000G/pca/g1k_full/pca_result.eigenvec` | 3,202 | complete |
-| Figure S1 QC table + PDFs | `csv/figure_s1/`, `pdf/figure_s1/` | 201 donors x 52 cols, 9 panels | R rendered 2026-09-17 (0 errors); **panel D re-rendering** with genome-wide het counts (job 14789860) |
+| Figure S1 QC table + PDFs | `csv/figure_s1/`, `pdf/figure_s1/` | 201 donors x 52 cols, 9 panels | complete; panel D re-rendered with genome-wide het counts (14789860, 2026-09-18 00:13) |
 | PMD coverage-downsampling test | `results/pmd_downsample/` | — | complete (A01g) |
 | Genome-wide het SNVs per donor | `results/qc/data/het_snp_counts_per_donor_gw.tsv` | 201 | complete (bcftools stats on cohort VCF); replaces the 10-donor `QC05_*` pilot file |
 | Methylation variance explained (qc17) | `results/qc/data/qc17/` | 229 donors (global), 201 (PMD metrics) | complete (`qc/02b`) |
 | Spatial heterogeneity + solo-WCGW clock (qc18) | `results/qc/data/qc18/` | 201 donors, 263k bins, 621 domains | complete (`pmds/05a`, `pmds/06a`) |
 | ASM replication: donor tiers + candidates | `results/asm/replication/{donor_tiers.tsv,candidates.tsv.gz}` | 69 discovery donors, 118,796 cpg + 229 Zink candidates | complete (C07a) |
-| ASM replication: re-test per donor | `results/asm/replication/calls/` | 2/201 | **queued** (C07b, job 14788189) |
-| ASM replication: genotype context | `results/asm/replication/genotype/` | 0/22 | **held** on C07b (C07c, job 14788192) |
-| ASM replication: summary + classes | `results/asm/replication/candidates_replication.tsv.gz` | — | **held** on C07c (C07d, job 14788197) |
+| ASM replication: re-test per donor | `results/asm/replication/calls/` | 201/201 | complete (C07b, 14788189) |
+| ASM replication: genotype context | `results/asm/replication/genotype/` | 22/22 | complete (C07c, 14788192) |
+| ASM replication: summary + classes | `results/asm/replication/candidates_replication.tsv.gz` | — | complete (C07d, 14788197, 2026-09-18 01:36); `class_summary.tsv`, `nearest_het_by_call.tsv`, `chromhmm_by_class.tsv` |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
 λ < 1.2: 70 donors (use as-is) · 1.2–2: 69 · 2–3: 37 (genomic control) · > 3: 25 (exclude from
@@ -147,24 +147,23 @@ Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 - In pandas, `df.gt` is the greater-than method: read a column named `gt` as `df['gt']`.
 - `zcat f | head -1` under `set -o pipefail` kills the script (SIGPIPE) — read headers in Python.
 
-## Next-session checklist (session closed 2026-09-18 ~00:15)
+## Next-session checklist (updated 2026-09-18 ~19:30; the PMD/validation arm has moved to `hprc2_misc`)
 
-**Start here — jobs that will land after this session (check `qstat -u terencew` first):**
+**Everything submitted on 2026-09-17 has landed.** Nothing of this repo's is queued
+(`qstat -u terencew` shows only interactive sessions). What finished overnight:
+C07b (201/201) -> C07c (22/22) -> C07d; Figure S1 panel D re-render; QC16 ASM calibration
+notebook; U01c hub rebuild + `pmds/03a`; QC15; C05a (after the `has_mqtl` bool fix).
 
-| job | what | then |
-|---|---|---|
-| 14788189 → 14788192 → 14788197 | ASM replication C07b (201 donors) → C07c (22 chroms) → C07d | read `results/asm/replication/class_summary.tsv`, `nearest_het_by_call.tsv`; build `asm/02a` figures notebook; write RESULTS §8 |
-| 14789860 | Figure S1 re-render (panel D genome-wide het counts) | check panel D, then S1 is done |
-| QC16, U01c | ASM calibration dashboard; hub rebuild | as before |
-| hprc2_misc 14786920, 14789128-39 | RNA/Hi-C/Fiber-seq download (57/229 done); de novo meQTL chain | see hprc2_misc PROGRESS |
+Open, in priority order:
+1. **ASM replication stage 4** (why loci fail to replicate) — JOURNAL §2 "ASM replication
+   architecture". C07d's output is in and summarized in JOURNAL §0/§1; build the `asm/02a`
+   figures notebook off `class_summary.tsv` / `nearest_het_by_call.tsv` first.
+2. **Two missing ASM tasks**: rerun H01 for HG02280 chr13 + chr16 (no PAF / het bed), then C02a
+   tasks 1949 and 1952.
+3. **PMD manuscript, plan E framings 2/5/7** — per-donor boundary calls. NB the Hi-C compartment
+   half of framing 5/7 is being built in `hprc2_misc` (`scripts/validate_pmds/hic`, H01a).
+4. Cross-repo: de novo meQTLs (hprc2_misc `clusters_k10`) vs PMDs and vs the ASM
+   `genotype_linked` class; that run died at the chr9 phenotype task and needs a rerun.
 
-**Priorities (agreed 2026-09-17):**
-1. **ASM replicability, replicating loci first** (C07 pipeline, JOURNAL §2 "ASM replication"):
-   imprinting / meQTL / functional overlap and nearest-het distance for replicating vs private
-   loci; then the harder arm — CpG architecture, allele frequency and LD as reasons a locus fails
-   to replicate.
-2. **PMD manuscript**: plan E framings 2, 5, 7 (boundary mobility / conservation, Hi-C
-   compartments) — 06a showed donor-specific variability concentrates at domain boundaries, so
-   boundary calls per donor are the next build. Hi-C / RNA / Fiber-seq validation lives in
-   `hprc2_misc`.
-3. De novo meQTLs (hprc2_misc) vs PMDs and vs the ASM genotype_linked class.
+**Submission rule (2026-09-18):** every array gets `#$ -tc` (see `docs/CONVENTIONS.md`).
+

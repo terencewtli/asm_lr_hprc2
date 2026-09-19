@@ -36,9 +36,17 @@ reads those and writes PDFs to `pdf/figure_*`. Figures from analysis notebooks g
 
 ## Array-job pattern (follow it, it has bitten us)
 
-Every array script: `#$ -t 1-N`, a `# ID=1` commented line above `ID=$SGE_TASK_ID` so the script
-is testable by hand, skip-if-exists on its own output, an explicit skip (exit 0) for donors with
-missing inputs, `time` before the main command, logs to `logs/<jobname>.$JOB_ID.$TASK_ID`.
+Every array script: `#$ -t 1-N`, **`#$ -tc N` to cap concurrent tasks**, a `# ID=1` commented line
+above `ID=$SGE_TASK_ID` so the script is testable by hand, skip-if-exists on its own output, an
+explicit skip (exit 0) for donors with missing inputs, `time` before the main command, logs to
+`logs/<jobname>.$JOB_ID.$TASK_ID`.
+
+**`-tc` is not optional** (added 2026-09-18). Default `-tc 50` (= 500 cores at `-pe shared 10`),
+`-tc 20` for tasks that stream multi-GB files, `-tc 10` for anything hitting a remote server. On
+2026-09-17 ~20k tasks were submitted across this repo and `hprc2_misc` in one day — C02a alone is
+4,444 tasks and ran twice — and the user believes the scheduler throttled them. Several arrays
+still lack `-tc`; add it when you next touch one. Also prefer chaining with `-hold_jid` over
+submitting every stage at once.
 
 **The skip-if-exists check lives in the shell script, not the Python.** If you change the Python
 output path, change the shell check too — otherwise every task silently skips and the job

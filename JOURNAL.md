@@ -952,6 +952,47 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-18 — overnight jobs landed; C07d replication classes; hap divergence scales with PMD depth
+- **Everything submitted 2026-09-17 finished**; the queue is empty. C07b 201/201 -> C07c 22/22 ->
+  C07d (01:36); Figure S1 panel D re-rendered; QC16, QC15, U01c, C05a all done. Two ASM tasks are
+  still missing for a real reason: H01 never produced het sites for **HG02280 chr13 / chr16**
+  (hap FASTAs but no PAF) — rerun H01 there, then C02a 1949/1952. See PROGRESS.
+- **C07d, replicating vs private ASM** (`results/asm/replication/class_summary.tsv`, 118,796
+  candidates + 229 Zink controls, penetrance over 105 replication-tier donors):
+
+  | class | n | median penetrance | Zink 10kb | mQTL | CGI-like | CpG/100bp | med. dist TSS | constitutive PMD | quiescent+het chromatin |
+  |---|---|---|---|---|---|---|---|---|---|
+  | imprinting | 414 | 0.74 | 1.00 | 0.06 | 0.17 | 2.19 | 2.2 kb | 0.37 | 0.11 |
+  | genotype_linked | 6,053 | 0.18 | 0 | 0.11 | 0.04 | 1.53 | 14.4 kb | 0.25 | 0.26 |
+  | genotype_indep | 2,201 | 0.16 | 0 | 0.11 | 0.13 | 2.02 | 7.7 kb | 0.17 | 0.16 |
+  | sporadic | 81,245 | 0.03 | 0.004 | 0.05 | 0.02 | 1.02 | 21.1 kb | 0.40 | 0.35 |
+  | private | 26,684 | 0 | 0.002 | 0.03 | 0.006 | 0.95 | 27.0 kb | 0.55 | 0.48 |
+
+  - **The genotype link is direct, not statistical**: at genotype_linked loci, 82% of donors
+    *with* an ASM call have a het SNV inside the region, vs 46% of donors tested at the same loci
+    without one (`nearest_het_by_call.tsv`). Imprinting shows no such shift (0.42 vs 0.45) — the
+    expected negative control.
+  - Replicating classes sit in **CpG-dense, TSS-proximal, active/enhancer chromatin**;
+    private/sporadic calls sit in **quiescent, CpG-poor, constitutive-PMD** sequence (55% of
+    private calls). That is the same axis as the per-donor inflation (λ ~ PMD depth), so
+    "private ASM" is largely the domain/clonality background, not a locus class.
+- **Hap1-vs-hap2 divergence scales with PMD depth** (run in `hprc2_misc`,
+  `scripts/pmd_genetics/D01b`, on this repo's per-hap 10 kb bins; user question):
+  - mean |hap1 - hap2| per donor rises with depth in **every** domain class — constitutive
+    rho 0.36, variable 0.48, rare 0.50, **never-PMD 0.37** (Spearman vs the chemistry-adjusted
+    depth score; OLS with chemistry + log coverage, all p < 1e-4). Deepest quintile vs shallowest:
+    0.029 vs 0.026 constitutive, 0.019 vs 0.016 never.
+  - Not a level artefact: the same trend holds within bins matched on pooled mCG (e.g. m in
+    [0.7, 0.8): rho 0.47 constitutive, 0.34 never), and in a binomial-normalized dispersion.
+  - **No direction**: mean signed (hap1 - hap2) is ~0 and frac(hap1 > hap2) is 0.499-0.500 in
+    every class and donor group. Stochastic divergence, not a systematic haplotype effect.
+  - Reading: this is a donor-wide property that tracks depth, not something PMD-specific — the
+    same clonality/mitotic-history axis as λ. It supports "private ASM = domain background".
+- **New submission rule:** every array gets `#$ -tc` (CONVENTIONS). ~20k tasks went out on
+  2026-09-17 and the user thinks they were throttled.
+- The PMD-validation arm (Hi-C compartments, RNA, Fiber-seq, meQTLs, the depth phenotype) now
+  lives in `hprc2_misc`; this repo keeps ASM and the methylation/PMD calling itself.
+
 ### 2026-09-17 (night, late) / 09-18 — ASM replication pipeline, spatial heterogeneity, S1 fixed
 - **Figure S1** rendered after two kernel failures. The second cause was libstdc++
   (`CXXABI_1.3.9`, fastmap), fixed via `LD_LIBRARY_PATH` in `S1_figures_run.sh`.
