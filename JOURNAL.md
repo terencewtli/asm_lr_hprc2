@@ -952,6 +952,41 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-18 (night) — the actual result: incomplete penetrance of cis-ASM, and a scope call
+Prompted by the user asking, bluntly, whether this is shaking out methodological rather than
+biological given that the high-penetrance loci are all imprinting. Short answer: the premise is
+half right, and the wrong half is where the paper is. RESULTS §13 new.
+
+- **[verified] The replicating set is not imprinting.** 414 imprinting vs **6,053
+  `genotype_linked`**. The "it's all imprinting" impression comes from reading the penetrance
+  >= 0.5 stratum, which is imprinting by construction (§8). The bulk of replicating ASM is
+  cis-genetic and low-penetrance.
+- **[verified] Among donors heterozygous at the lead variant, median penetrance is 0.525**
+  (non-carriers 0.022, a 24x specificity ratio), **only 2.1% of loci are fully penetrant**, and
+  observed penetrance is 0.44x what a fully-penetrant cis effect at that allele frequency would
+  give. About half the carriers of the causal variant show nothing. That is the project's stated
+  question, and it now has a number.
+- **[verified] It is locus-intrinsic, not a detection artefact.** Variance decomposition over
+  355,775 heterozygous donor x locus observations: **locus identity 18.1%, donor identity 3.8%**
+  (~5:1). Read depth is flat (Spearman 0.062; ASM rate 0.526 at 21-30 reads/hap vs 0.559 at
+  31-50). Per-donor hit rate IQR 0.500-0.585. Since a trans modifier is by construction a donor
+  property, **trans modifiers are largely excluded** — a useful negative.
+- **[reported, NOT yet quotable] Ancestry-differential penetrance conditional on genotype.**
+  Same locus, same lead-het status, split by superpopulation (5,648 loci with >=5 het donors in
+  >=2 superpops): 7.6% heterogeneous at p < 0.05 (expect 5%), 1.86% at p < 0.01 (expect 1%).
+  ~150-300 loci. chi2 on small cells is anti-conservative — needs the C09b permutation first.
+- **[verified] We have the phenomenon and not the mechanism.** Every predictor of penetrance is
+  weak: CpG count +0.235, CpG obs/exp +0.233, lead distance -0.030, PMD -0.042, RT +0.030, and a
+  CpG-destroying lead variant is no more penetrant than one that is neither (0.503 vs 0.543).
+  Penetrance falls with lead AF (0.739 at AF<0.10 -> 0.453 at 0.35-0.50), most likely
+  ascertainment.
+- **[scope call] Reframe around the penetrance continuum**, imprinting at 0.74 anchoring one end
+  and ordinary cis-ASM at 0.52 the other. Under that framing §8's imprinting recovery is the
+  calibration of the scale rather than a standalone positive control, and it stops competing
+  with the real result. Deprioritise further caller calibration: lambda is 66% explained, the
+  null is characterised, and the marginal return moved to the biology.
+
+
 ### 2026-09-18 (late evening) — C08a-d: locus sizes, penetrance without tiers, two checks, two self-corrections
 Implements the fixes listed in the earlier entry today. Scripts `scripts/asm/C08a-d`, outputs in
 `results/asm/model/`. RESULTS §11-12 new; §6 and §7 corrected in place.

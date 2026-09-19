@@ -27,6 +27,7 @@ in parallel as separate papers; §1 (resource and its technical limits) is share
 9. How do the domains relate to the ASM?
 10. What actually causes the per-donor inflation?
 11. Can penetrance be estimated without throwing away most of the cohort?
+12. What sets ASM penetrance, and is any of it ancestry-linked?
 
 ---
 
@@ -532,6 +533,87 @@ their nearest genes are ZDBF2 (18), PWAR1 (15), SNHG14 (9), MIR298 (8), SNORD116
 30.3% sit next to a gene on a canonical imprinted-gene list, which is the expected shortfall:
 most of these are lncRNA/snoRNA entries inside known imprinted clusters rather than the named
 protein-coding gene, so the domain call is doing the work the gene-name list cannot.
+
+---
+
+## 13. The result: cis-driven ASM is incompletely penetrant, and the incompleteness is a locus property
+
+This is the finding the project exists to make, and §8's imprinting result is its calibration
+anchor, not a competitor. Restrict to the **6,053 `genotype_linked` loci** and to the donors who
+are actually **heterozygous at the lead variant** — the carriers of the putative causal allele:
+
+| quantity | value |
+|---|---|
+| penetrance among lead-variant heterozygotes | **median 0.525** (IQR 0.379–0.725) |
+| penetrance among non-heterozygotes | 0.022 |
+| specificity ratio | **24×** |
+| loci fully penetrant among carriers (pen_het = 1.0) | **2.1%** |
+| loci with pen_het ≥ 0.5 | 54.5% |
+| observed penetrance / that predicted by a fully-penetrant cis effect at the lead AF | **0.44** |
+
+**About half of the donors carrying the causal heterozygous variant show no ASM at all.** The
+lead variant is genuinely doing work (24× over non-carriers), so this is not a bad-tag artefact.
+
+### It is not a detection artefact — the test that would have killed it
+
+Variance decomposition of "does this heterozygous donor show ASM at this locus", over 355,775
+donor×locus observations (174 donors, 6,053 loci):
+
+| source | variance explained |
+|---|---|
+| **locus identity** | **18.1%** |
+| donor identity | 3.8% |
+
+**~5:1 locus over donor.** Penetrance is a property of the locus, not of which donors were
+sequenced. Supporting checks:
+- **Read depth is flat.** Spearman(min reads/hap, ASM call) = 0.062; ASM rate 0.459 at 11–20
+  reads, 0.526 at 21–30, 0.559 at 31–50, 0.535 above 50. The 21–50 range holds almost all the
+  data and barely moves.
+- Per-donor hit rate is tight: median 0.550, **IQR 0.500–0.585** (the long low tail is the 12
+  GC-zeroed donors of §7).
+- **Trans-acting modifiers are largely excluded**: a trans modifier is by construction a donor
+  property, and donor identity carries only 3.8%.
+
+### Ancestry-differential penetrance, conditional on genotype — the population-genetics signal
+
+Same locus, same lead-variant heterozygous status, split by superpopulation (5,648 loci with ≥5
+heterozygous donors in ≥2 superpopulations):
+
+- **7.6% heterogeneous at p < 0.05** (expect 5.0%)
+- **1.86% at p < 0.01** (expect 1.0%)
+
+A 1.5–1.9× excess, i.e. very roughly 150–300 loci where penetrance differs by ancestry *after*
+conditioning on the causal genotype. This is the claim the diverse cohort was assembled to make.
+**Not yet quotable**: χ² on small per-superpopulation cells is anti-conservative, so it needs the
+permutation in `C09b` before it goes anywhere.
+
+### What we cannot yet say: what makes a locus penetrant
+
+Every available predictor of `pen_het` is weak or absent:
+
+| predictor | Spearman |
+|---|---|
+| CpG count in region | +0.235 |
+| CpG obs/exp | +0.233 |
+| lead-variant distance | −0.030 |
+| PMD frequency | −0.042 |
+| replication timing | +0.030 |
+
+and a CpG-destroying or -creating lead variant is **not** more penetrant than one that is
+neither (0.503 / 0.491 vs 0.543). Penetrance also *falls* with lead allele frequency (0.739 at
+AF < 0.10 → 0.453 at AF 0.35–0.50), which is most likely ascertainment — a rare variant needs a
+larger effect to be detected at all — and should be treated as such until shown otherwise.
+
+So: the phenomenon is established and is locus-intrinsic; the mechanism is open. The leading
+hypothesis, and the next build (`C09a`), is **haplotype background** — the lead SNV is a tag, and
+penetrance may depend on which local haplotype carries the lead allele. That would explain the
+ancestry heterogeneity above without invoking anything trans, because haplotype frequencies
+differ by ancestry while tag-allele frequencies need not.
+
+**Framing consequence.** Penetrance is a continuum with imprinting at one end (0.74) and ordinary
+cis-ASM at the other (0.52 among carriers). The imprinting recovery in §8 is what calibrates the
+scale — 0.52 is not interpretable without knowing what 1.0 looks like in the same assay — so it
+belongs in the paper as the anchor, not as a standalone positive-control result.
 
 ---
 

@@ -223,6 +223,26 @@ Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 
 ## Next-session checklist (updated 2026-09-18 ~19:30; the PMD/validation arm has moved to `hprc2_misc`)
 
+**Priorities as of 2026-09-18 night, in order (supersedes anything below that conflicts):**
+
+1. **`C09a` haplotype background — make-or-break.** The lead SNV is a tag, not necessarily the
+   cause. Test whether penetrance is predicted by the local HAPLOTYPE carrying the lead allele
+   rather than by the lead allele alone. If carriers of haplotype A show ASM and carriers of
+   haplotype B do not at the same tag SNP, that is a cis mechanism for the incomplete penetrance
+   in RESULTS §13, and it explains the ancestry heterogeneity for free (haplotype frequencies
+   differ by ancestry; tag-allele frequencies need not). This is the reason the cohort is
+   ancestrally diverse. Everything else is secondary.
+2. **`C09b` permutation for the superpopulation-heterogeneity signal.** Turn 7.6%-vs-5% into a
+   defensible locus list. chi2 on small per-superpop cells is anti-conservative; permute
+   superpopulation labels within lead-genotype strata.
+3. **Finish C08c genome-wide** (arrays 14808255 + 14809578) and fold into RESULTS §12, which
+   currently cites chr21 only.
+4. **Rebuild the ASM narrative around the penetrance continuum** (RESULTS §13 last paragraph).
+
+**Deprioritised:** further caller calibration. lambda is 66% explained (§10), the empirical null
+is characterised and its blind spot documented (§7), and C08a-d closed the structural issues.
+
+
 **Everything submitted on 2026-09-17 has landed.** Nothing of this repo's is queued
 (`qstat -u terencew` shows only interactive sessions). What finished overnight:
 C07b (201/201) -> C07c (22/22) -> C07d; Figure S1 panel D re-render; QC16 ASM calibration
