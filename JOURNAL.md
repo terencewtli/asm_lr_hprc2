@@ -952,6 +952,128 @@ shared limitations, not one story's problem.
 
 ## 3. Log (newest first)
 
+### 2026-09-18 (late evening) — C08a-d: locus sizes, penetrance without tiers, two checks, two self-corrections
+Implements the fixes listed in the earlier entry today. Scripts `scripts/asm/C08a-d`, outputs in
+`results/asm/model/`. RESULTS §11-12 new; §6 and §7 corrected in place.
+
+- **[verified] ASM locus size is real, and my earlier warning about it was too strong.** `C08a`
+  merges each discovery donor's adjacent significant tiles (250 bp slop): 267,208 merged loci,
+  **93.5% are a single tile**, median merged span 841 bp vs 819 for the raw tile, p95 1,762 bp,
+  max 25 kb, 1.10 tiles per locus. The `MAX_SPAN = 1000` cap was **not** binding. The
+  "818 bp / 7 CpG" figure survives contact with the merge — it just now has evidence behind it
+  rather than being a restatement of the tiling.
+- **[verified] Dropping the tier split recovers ~35% more callable regions.** `C08b` replaces
+  "penetrance = n_asm/n_tested over 105 replication donors, called against a scalar P0" with a
+  per-donor propensity offset, logit P(call_ij) = theta_j + logit(b_i). Donors contributing
+  105 -> **189**; median donors per region 105 -> 201; regions called 10,894 (9.15%) ->
+  **16,583 (13.93%)** (gained 5,753, lost 64); Zink recovery 59.8% -> **62.0%**; detection floor
+  0.124 -> **0.081**; median CI width on penetrance 0.049.
+- **[retracted] My first C08b run reported 37.9% of candidates called. That was an artefact of
+  iterating the null-set estimate and is wrong.** Re-estimating b_i on the regions left after
+  dropping q < 0.05, and repeating, eroded the null set 119,024 -> 102,420 -> 87,914 -> 79,373 ->
+  73,832 with b_i still falling 0.0442 -> 0.0145 and no sign of converging. Each pass removes
+  regions, which lowers b_i, which makes more regions significant. There is no fixed point. The
+  default is now a single non-adaptive estimate over all candidates (conservative: it contains
+  the signal), with the sensitivity published rather than buried —
+  **13.9% / 29.6% / 43.6% called at null quantile 1.00 / 0.75 / 0.50**. This is the same
+  "where is the null?" problem as lambda in §7, one dimension over, and it is now the largest
+  open uncertainty in the ASM arm.
+- **[corrected] Genomic control over-corrects far below lambda = 12.9.** RESULTS §7 said GC
+  "over-corrects only at lambda = 12.9 (NA20762)". Measured on the actual C07b output: **12
+  donors call nothing at all at any candidate after GC** — 9 of the 13 `inflated` tier and 3
+  `excluded` — and the lowest lambda among them is **3.84** (HG02668). The inflated tier is not
+  "kept with genomic control", it is silently zeroed. Effective cohort 189, not 201.
+  Where GC does work it works well: among the 189, Spearman(propensity, lambda) = **0.132**,
+  down from 0.974 for raw per-donor yield.
+- **[retracted] The lead-variant multiple-testing concern was wrong.** I estimated ~986 spurious
+  leads across 118,796 candidates from a naive Bonferroni over the median 75 SNVs scanned per
+  region. `C08c` permutes which calibrated donors carry the ASM call (1,000 permutations, variant
+  set / het matrix / K held fixed): on chr21, **0 of 319 regions with lead_p < 1e-4 fail at
+  p >= 0.05**, and the permuted minimum-p has median 0.057. LD collapses ~75 nominal tests to a
+  handful, so 1e-4 sits ~570x beyond the null median and the uncorrected threshold is
+  conservative. The Bonferroni estimate assumed independence, which is exactly wrong for variants
+  in a 10 kb window. Genome-wide array 14808255 queued to confirm.
+- **[verified] Imprinted-domain reclassification confirms the contamination diagnosis.** `C08d`
+  builds 84 domains by merging Zink DMRs within 1 Mb + 100 kb pad (median span 201 kb, max
+  1.9 Mb). Among candidates at penetrance >= 0.5 the imprinted fraction rises **52.9% -> 70.3%**
+  and `genotype_indep` drops 127 -> 38 regions. The 165 moved regions have median penetrance
+  0.562 and median direction consistency **0.571** — parent-of-origin — with nearest genes
+  ZDBF2 (18), PWAR1 (15), SNHG14 (9), MIR298 (8), SNORD116-30 (6). Only 30.3% are adjacent to a
+  gene on a canonical imprinted list, as expected: most are lncRNA/snoRNA entries inside known
+  clusters, which is precisely what a gene-name filter misses and a domain call catches.
+
+
+### 2026-09-18 (evening) — ASM replication audit; `asm_lr`'s anomalous donors replicate under assembly phasing
+Read-only audit of the C07a-d outputs against the raw tables (no pipeline reruns). RESULTS §8
+rewritten from "pending" to the actual result, plus new §9 (PMDs × ASM) and §10 (what λ is).
+Structural caveats went into PROGRESS, not here.
+
+- **[verified] `asm_lr`'s 6 "anomalous candidate-rate" donors are the most inflated donors here,
+  under a pipeline that shares nothing with the one that flagged them.** `asm_lr` flagged
+  NA18508, NA20762, HG01167, NA21093, NA18620, NA20870 under WhatsHap population-panel
+  haplotagging + per-CpG Fisher (later beta-binomial). HPRC2 uses assembly-partitioned
+  haplotypes and a read-level test — no shared phasing step, no shared caller path.
+
+  | donor | λ_gc | λ rank /199 | read_sd rank | tier |
+  |---|---|---|---|---|
+  | NA20762 | 13.13 | **1** | **1** | excluded |
+  | NA18508 | 7.08 | **4** | 3 | inflated |
+  | HG01167 | 3.27 | 21 | 29 | inflated |
+  | NA18620 | 2.68 | 32 | 155 | replication |
+  | NA20870 | 2.18 | 53 | 41 | replication |
+  | NA21093 | 1.97 | 63 | 184 | replication |
+
+  Median λ 2.97 vs cohort 1.54; Mann-Whitney vs the rest **p = 5e-4**. The 5 `asm_lr`
+  "confirmed-sane" donors present (HG00146, HG02392, NA19682, NA21110, NA19700) have median
+  λ 0.97, four of five in the discovery tier.
+  **This closes `asm_lr` `md/20260907_phasing_qc_review.md` §4** — the anomaly is donor-intrinsic,
+  not population-panel phasing. Assembly-based phasing reproduces it.
+- **[verified] The converse also holds: `asm_lr`'s other failure mode does NOT replicate.** The
+  2 "zero-hit / extreme ρ̂" donors (HG00344 ρ̂ 0.097, NA21144 ρ̂ 0.116, zero significant regions on
+  chr1) are unremarkable here — λ 1.39 / 1.50, mid-cohort read_sd, both replication tier. That
+  failure was the global dispersion estimator, exactly as
+  `ont_asm_caller/docs/2026-09-05_calibration_critique.md` Defect 2 predicted for bimodal μ.
+  Two pilot anomalies: one is biology and travels across pipelines, one was the caller and does not.
+- **[verified] λ decomposes.** log λ_gc ~ read_sd R² 0.480; + constitutive-domain depth **0.659**;
+  + chemistry 0.673 (p = 0.021); + superpopulation 0.678 (all superpop terms p > 0.08). Sex
+  R² 0.001 (p = 0.65). Passage, coverage, read N50, EBV all ≤ 0.018. XIST skew 0.189 in the 95
+  females; clonal-like (skew > 0.5, n = 35) median λ 2.13 vs 1.25. RESULTS §10.
+- **[verified] The ancestry signal in ASM yield is detection power, not biology.** Raw AFR/EAS
+  ASM ratio 3.9× (27,570 vs 7,140 regions). In the discovery tier it is 1.34× (4,437 vs 3,308)
+  while heterozygosity differs 1.41× (3.11M vs 2.21M het SNVs) — **ASM per Mb of heterozygosity
+  is 0.95×, i.e. identical**. Superpopulation adds nothing to log(n_asm) once het count and λ are
+  in the model: partial F p = 0.37 (discovery tier), p = 0.07 (all donors); superpop alone
+  R² 0.094. The project's premise is ancestry-stratified ASM, so this belongs in the abstract,
+  not a supplement. The *penetrance* question is a different quantity and is untouched by this.
+- **[verified] PMDs produce ASM calls but not ASM signal** (RESULTS §9). Raw ASM rate is 1.5–1.6×
+  higher in domains, but median penetrance runs never-PMD 0.048 → constitutive 0.010 and
+  frac-replicating 16.2% → 4.7%. `private` calls are 1.61× enriched in constitutive-PMD and 0.34×
+  depleted in never-PMD; `genotype_linked` is the reverse. Locus-level counterpart of λ ~ depth.
+  **Consequence: PMD depth is a confounder for ASM, not a parallel finding — it belongs in every
+  ASM model as a covariate.**
+- **[verified] The high-penetrance set is ~95% imprinting, not 76%.** Of the 155 regions at
+  penetrance ≥ 0.5 outside a 10 kb Zink window, 127 are `genotype_indep` and sit in imprinted
+  domains (ZDBF2, PWAR1, SNORD116-30, SNHG14, H19) with direction consistency 0.579. The 10 kb
+  window is too tight for domains spanning 100 kb–2 Mb.
+- **[verified] The proximal/distal discrepancy carried over from `asm_lr` is settled.** 67.9% of
+  ASM-positive donor-calls have a het SNV inside the region and 85.3% within 1 kb, against a
+  **46.4% matched background** at the same loci in donors without a call (12.3M donor×region
+  rows). Neither `asm_lr` number (91.3% or ~50/50) applies, and neither was quoted against a
+  background. Remove the "live discrepancy" note from `docs/20260908_project_transition.md`.
+- **[retracted] "The test is correctly calibrated — the heterogeneity is biological"** as written
+  in RESULTS §7. True for read sampling only. Splitting one haplotype's reads at random preserves
+  the clone mixture on both sides, so the null cannot detect clone-level between-read
+  correlation — which is what inflates λ. Hence λ_null is a flat 0.67 across all 199 donors while
+  λ_gc spans 16×. Also: **no donor's λ_gc reaches its own null** (excess 1.21–1.76 even in the
+  discovery tier, median 1.49; zero donors below 1.0), so "calibrated" means *least inflated
+  against a theoretical λ = 1*. Both λ and read_sd are unimodal — a continuum, not two donor
+  classes. RESULTS §7 now carries the caveat.
+- **[reported] Open, in priority order:** (1) the 12.4% penetrance floor, which is the binding
+  constraint on the paper's actual question; (2) merge regions per donor so ASM locus size stops
+  being `MAX_SPAN`; (3) permutation null for `lead_p`; (4) reclassify `genotype_indep` on
+  imprinted domains. Detail in PROGRESS "ASM replication outputs (C07a-d)".
+
+
 ### 2026-09-18 — overnight jobs landed; C07d replication classes; hap divergence scales with PMD depth
 - **Everything submitted 2026-09-17 finished**; the queue is empty. C07b 201/201 -> C07c 22/22 ->
   C07d (01:36); Figure S1 panel D re-rendered; QC16, QC15, U01c, C05a all done. Two ASM tasks are

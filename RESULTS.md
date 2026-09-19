@@ -6,7 +6,7 @@ that were retracted along the way) is in `JOURNAL.md`; what has finished running
 
 Cohort: HPRC2 lymphoblastoid cell lines, haplotype-resolved ONT methylation.
 **202 donors with assemblies, 402 haplotypes, ~30x per CpG per haplotype**, hg38.
-Last updated 2026-09-18.
+Last updated 2026-09-18 (ASM replication audit: §8-10 new).
 
 ---
 
@@ -23,6 +23,10 @@ in parallel as separate papers; §1 (resource and its technical limits) is share
 5. Is domain state genetic?
 6. How much allele-specific methylation is there, and are the calls real?
 7. What has to be controlled before ASM can be compared across donors?
+8. Which ASM loci replicate across donors, and what distinguishes them?
+9. How do the domains relate to the ASM?
+10. What actually causes the per-donor inflation?
+11. Can penetrance be estimated without throwing away most of the cohort?
 
 ---
 
@@ -246,10 +250,16 @@ late replication.
 Read-level test (per-molecule methylation fractions, Welch/Mann-Whitney) over 2,019,218 hg38 CpG
 clusters (median 852 bp, 10 CpGs) covering 26.1M of 27.7M autosomal CpGs.
 
-**Rate, in the 70 well-calibrated donors (see §7):**
-- median **4,077 ASM regions per donor = 0.21% of tested regions = 0.23% of tested CpGs**,
-  median |Δ| 0.26; ASM regions are 818 bp / 7 CpGs.
+**Rate, in the 69 well-calibrated donors (see §7):**
+- median **4,047 ASM regions per donor = 0.21% of tested regions = 0.23% of tested CpGs**,
+  median |Δ| 0.26 (IQR 3,205–5,479; range 577–8,096).
 - union across those donors: **119,926 distinct regions (5.9% of tested)**.
+- **ASM locus size, measured** (`C08a`, per-donor merge of adjacent significant tiles, 250 bp
+  slop, 69 discovery donors, 267,208 merged loci). `C01a` caps tiles at 1 kb, so the size had to
+  be checked rather than read off the tiling — **the cap turns out not to be binding**: 93.5% of
+  merged loci are a single tile, median merged span **841 bp** (vs 819 for the raw tile), p95
+  1,762 bp, max 25 kb, median 1.10 tiles per locus. ASM loci really are sub-kilobase; the long
+  tail (0.2% > 5 kb) is the imprinted domains.
 
 **Comparison:** deCODE (Nat Genet 2024, 7,179 Icelanders, ONT) report 1.2% of CpG units as
 candidates and 0.51% validated as ASM-QTLs. Their number is a cohort union validated against
@@ -269,9 +279,20 @@ it.
 
 ## 7. Per-donor calibration is mandatory before any cross-donor ASM claim
 
-**The test is correctly calibrated — the heterogeneity is biological.** Empirical null (split one
+**The test is correctly calibrated against read sampling.** Empirical null (split one
 haplotype's reads in half, run the identical test), 199 donors: **λ_null = 0.61–0.71, zero donors
 above 1.1**, i.e. uniformly slightly conservative.
+
+**Caveat — the null cannot see what inflates λ, so do not write "correctly calibrated" unqualified.**
+Splitting one haplotype's reads at random preserves the same clone mixture on both sides, so the
+null tests the read-level test against read/binomial sampling only, never against clone-level
+between-read correlation. That is exactly why λ_null is a flat 0.67 across all 199 donors while
+λ_gc spans 16×. Relatedly, **no donor's λ_gc sits at its own null**: excess = λ_gc/λ_null is
+1.21–1.76 (median 1.49) even in the discovery tier, 2.54 in replication, 6.0 inflated, 14–21
+excluded; zero donors below 1.0. "Calibrated" means *least inflated relative to a theoretical
+λ = 1*, not *no excess haplotype divergence*, and the λ < 1.2 cutoff is measured against the
+wrong reference point. λ and `read_sd` are both unimodal — this is a continuum, not two classes
+of donor.
 
 **But donors differ enormously in real haplotype divergence.** In the real comparison, chr20
 λ ranges 0.81–13.1 (median 1.54), so raw ASM yield spans 0.02%–11% per donor.
@@ -297,7 +318,15 @@ remain after dropping all 35 clonal-like ones):**
 | > 8 | ~3 (incl. NA20762) | exclude |
 
 Genomic control preserves imprinted-DMR detection up to λ ≈ 6–8 (HG00097 113→113, NA18508
-107→101, HG01150 94→76) and over-corrects only at λ = 12.9 (NA20762 91→0).
+107→101, HG01150 94→76).
+
+**[corrected 2026-09-18] GC over-corrects far below λ = 12.9.** Measured on the actual C07b
+output (`C08b`, `results/asm/model/donor_propensity.tsv`): **12 donors call essentially nothing
+at any candidate after GC** — 9 of the 13 `inflated` tier and 3 `excluded` — and the lowest λ
+among them is **3.84** (HG02668), not 12.9. So the inflated tier is not "kept with genomic
+control", it is silently zeroed. Effective cohort for any GC-based analysis is **189 donors**.
+Where GC *does* work it works well: among the 189, Spearman(propensity, λ) is **0.132**, down
+from 0.974 for the raw per-donor yield.
 
 **Consequence for penetrance:** with 66% of union loci private to one donor and per-donor yield
 scaling with λ, penetrance is only interpretable after calibration. Recipe: discover on λ < 1.2
@@ -306,27 +335,203 @@ calibrated* donors, and anchor against imprinted DMRs and HPRC2 mQTLs.
 
 ---
 
-## 8. ASM replicability — pipeline built, running (2026-09-18)
+## 8. ASM replicability: 9% of candidates replicate, and penetrance is bimodal — imprinting or nothing
 
-Following the §7 recipe, `scripts/asm/C07a-d` implement discovery → replication.
-- **Discovery:** 69 donors with chr20 λ_gc < 1.2 define 118,796 candidate regions (any ASM call),
-  plus the 229 Zink DMRs as positive controls.
-- **Re-test:** every donor is re-tested at the candidates with per-donor genomic control and
-  candidate-set BH.
-- **Penetrance:** computed on the 105 replication-tier donors only (1.2 ≤ λ ≤ 3), which played no
-  part in choosing candidates. Also reported within R9.4.1.
-- **Genotype context** (phased cohort VCF, same hap1/hap2 labels as the ASM delta): het SNVs
-  in/near each region and the distance to the nearest one; CpG-destroying/creating variants;
-  cohort allele frequency.
-- **Lead variant:** the SNV whose heterozygosity best predicts ASM across donors. Its
-  allele-direction consistency separates a cis genetic effect (~1) from parent-of-origin
-  imprinting (~0.5).
-- **Classes:** imprinting, genotype_linked, genotype_indep, other, sporadic, private — compared on
-  imprinting / HPRC2-mQTL / ChromHMM / TSS / CpG-architecture overlap.
+`scripts/asm/C07a-d`, complete 2026-09-18 01:36. Discovery on the 69 λ_gc < 1.2 donors gives
+118,796 candidate regions (any ASM call in ≥1 of them) plus the 229 Zink DMRs as controls;
+penetrance is measured only in the 105 replication-tier donors (1.2 ≤ λ ≤ 3), who played no part
+in selecting candidates. Classification bar: binomial p < 1e-3 against P0 = 0.0454, the median
+per-donor call rate over candidates.
 
-Candidate recurrence among discovery donors: 78,774 in one donor, 30,474 in 2–5, 8,097 in 6–20,
-1,451 in > 20. Only 0.7% of candidates lie within 10 kb of a Zink DMR, 4.9% overlap an HPRC2
-promoter mQTL, and 1.9% are CGI-like. Results pending (C07b–d queued).
+**Only 9.05% of candidates replicate.** 68.3% are `sporadic`, 22.4% `private` (no replication
+donor calls them at all).
+
+| class | n | median penetrance | Zink 10 kb | mQTL (OR vs bg) | CGI-like | med. dist TSS | dir. consistency |
+|---|---|---|---|---|---|---|---|
+| imprinting | 414 | **0.74** | 1.00 | 0.06 (1.2×) | 0.17 | 2.2 kb | **0.571** |
+| genotype_linked | 6,053 | 0.18 | 0 | 0.11 (2.2×) | 0.04 | 14.4 kb | 1.000 |
+| genotype_indep | 2,201 | 0.16 | 0 | 0.11 (2.3×) | 0.13 | 7.7 kb | 0.778 |
+| other | 2,088 | 0.15 | 0 | 0.12 (2.5×) | 0.10 | 10.3 kb | 0.889 |
+| sporadic | 81,245 | 0.03 | 0.004 | 0.05 (1.0×) | 0.02 | 21.1 kb | — |
+| private | 26,684 | 0 | 0.002 | 0.03 (0.5×) | 0.006 | 27.0 kb | — |
+| zink_control | 229 | 0.26 | 1.00 | 0.08 | 0.29 | 5.6 kb | **0.588** |
+
+**Penetrance is bimodal, and the high mode is imprinting.** Enrichment for a Zink DMR within
+10 kb, against a 0.70% candidate background:
+
+| penetrance | n | frac near Zink | enrichment |
+|---|---|---|---|
+| ≤ 0.05 | 86,276 | 0.35% | 0.5× |
+| 0.124–0.25 | 7,665 | 0.82% | 1.2× |
+| 0.25–0.5 | 1,893 | 4.3% | **6.1×** |
+| 0.5–0.75 | 129 | 46.5% | **66×** |
+| 0.75–0.9 | 99 | 63.6% | **91×** |
+| > 0.9 | 185 | **76.2%** | **109×** |
+
+**And the high-penetrance residue is also imprinting.** Of the 155 regions at penetrance ≥ 0.5
+that are *not* within 10 kb of a Zink DMR, 127 are classed `genotype_indep`; their nearest genes
+are ZDBF2 (14), PWAR1 (11), SNORD116-30 (9), SNHG14 (8), H19 (5), and their direction consistency
+is 0.579 (≈ 0.5 = parent-of-origin). These are imprinted *domains* extending past a 10 kb window.
+The true imprinted share of the penetrance ≥ 0.5 set is therefore ≈ 95%, not 76%, and
+`genotype_indep` is contaminated at its high end. **Use imprinted domain intervals, not a 10 kb
+Zink window** (open item).
+
+**Zink recovery, 229 DMRs:** 87.8% called by ≥1 replication donor, **59.8% clear the p < 1e-3
+bar** (vs `asm_lr`'s 48.9% at ≥2/6), 34.9% at penetrance > 0.5. The misses are CpG density:
+lowest-density quartile recovers 13.8%, top two quartiles 79–86%.
+
+**Direction consistency is the strongest validation in the project**, because two of the three
+groups are not selected on it: `imprinting` (selected only on Zink proximity) gives 0.571 and
+`zink_control` 0.588 — both ≈ 0.5, parent-of-origin — while `genotype_linked` gives 1.00, cis.
+The caller reproduces the mechanism split without being told it exists. `genotype_linked`'s 1.00
+is circular (dir ≥ 0.8 is one of its selection criteria); quote the imprinting number instead.
+
+**Nearest het SNV** (12.3M donor×region rows, replication tier): ASM-positive calls median 0 bp,
+**67.9% with a het inside the region, 85.3% within 1 kb**, 0.7% beyond 20 kb; ASM-negative calls
+at the same loci median 75 bp, 46.4% inside. The enrichment is real but modest — het spacing is
+~1 per 1.1 kb and regions are ~820 bp, so ~46% of regions contain a het by chance. By class,
+`genotype_linked` is 100% inside at the median (its definition) and `imprinting` is 192 bp, i.e.
+imprinted ASM is correctly *not* at het sites.
+**This settles the `asm_lr` proximal/distal discrepancy** (91.3% vs ~50/50, flagged live in
+`docs/20260908_project_transition.md`): neither figure applies here. The answer is 68% inside
+against a 46% matched background — and neither earlier number was quoted against a background.
+
+**Candidate recurrence at discovery predicts final class**, so the singleton tail is nearly inert:
+of 78,774 single-donor candidates, 31.4% end up `private` and 67.2% `sporadic` (1.4% structured);
+of the 1,451 seen in > 20 discovery donors, 21.2% are `imprinting` and 0.14% `sporadic`.
+
+---
+
+## 9. PMDs generate ASM calls but not ASM signal
+
+Raw ASM rate is **1.5–1.6× higher inside domains** than in never-domain bins (never 1.01%, rare
+1.54%, variable 1.61%, common 1.63%, constitutive 1.57%; `asm_by_domain_class.tsv`), and rises
+monotonically toward late replication (RT decile 0 1.46%, decile 9 1.01%). Taken alone that reads
+as "ASM is enriched in PMDs". It is the opposite.
+
+Conditioning on replication reverses it:
+
+| PMD class | n candidates | median penetrance | frac replicating | frac private |
+|---|---|---|---|---|
+| never | 27,177 | **0.048** | **16.2%** | 11.5% |
+| rare | 21,175 | 0.029 | 10.8% | 18.9% |
+| variable | 14,793 | 0.019 | 7.9% | 22.3% |
+| common | 3,848 | 0.019 | 7.3% | 25.2% |
+| constitutive | 49,260 | **0.010** | **4.7%** | **30.1%** |
+
+Enrichment of each class against the genome-wide region background (35.4% never / 35.1%
+constitutive): `private` is 1.61× enriched in constitutive-PMD and 0.34× depleted in never-PMD;
+`genotype_linked` is 0.71× in constitutive and 1.23× in never; `imprinting` is 1.06×, i.e.
+neutral (imprinted DMRs are scattered with respect to domains). Median RT: `private` 40.0
+(latest), `sporadic` 50.1, `genotype_linked` 62.4, `other` 63.8 (earliest).
+
+**Reading: domains are where the false/private calls live, and real cis-driven ASM lives in
+early-replicating, non-domain, gene-proximal sequence.** This is the locus-level counterpart of
+the donor-level λ ~ depth relation in §7 — one phenomenon (drift in the late-replicating
+compartment), seen per-donor and per-locus. It also means the ASM and PMD arms of the project are
+not independent: PMD depth is a confounder for ASM and must be a covariate in every ASM model,
+not a parallel finding.
+
+---
+
+## 10. λ is not mysterious: two measured donor properties explain 2/3 of it
+
+Regressing log λ_gc on every available donor covariate (199 donors):
+
+| covariate | R² | direction |
+|---|---|---|
+| **within-hap read spread (`read_sd`)** | **0.480** | negative (r = −0.69) |
+| null mean \|Δ\| | 0.322 | negative |
+| **XIST skew (clonality, 95 females)** | **0.189** | positive |
+| mcg_never / mcg_constitutive | 0.170 / 0.147 | negative |
+| **constitutive-domain depth** | **0.125** | positive |
+| HPRC2 methylation QC flag | 0.089 | positive |
+| het SNV count | 0.054 | positive |
+| superpopulation | 0.049 (p = 0.048) | AFR highest |
+| median reads, EBV, mean depth | ≤ 0.018 | — |
+| **sex** | **0.001 (p = 0.65)** | none |
+| coverage, read N50, passage, established | ≤ 0.006 | none |
+
+Joint: `read_sd` alone R² 0.480 → **+ domain depth 0.659** → + chemistry 0.673 (chemistry
+p = 0.021, small but real) → + superpopulation 0.678 (every superpopulation term p > 0.08).
+**Ancestry contributes essentially nothing to λ once dispersion and depth are in the model**, and
+neither does sex, passage, coverage or read length. Clonal-like females (XIST skew > 0.5, n = 35)
+have median λ 2.13 vs 1.25 for the rest.
+
+So λ has a mechanism and a measurement: **low within-haplotype read spread + deep domains = a
+line whose two alleles are not averaged across cells**. It should be modelled as a continuous
+donor covariate, not used only as a tier cutoff.
+
+---
+
+## 11. Penetrance without the tier split (C08b), and what it costs
+
+`scripts/asm/C08b_penetrance_model.py`. C07d estimates penetrance as `n_asm_rep / n_tested_rep`
+over the 105 replication-tier donors and calls a region at binomial p < 1e-3 against a single
+scalar P0 = 0.0454. That discards 96 donors — including all 69 discovery donors, which are the
+*cleanest* ones, because λ and yield correlate at ρ = 0.974 — and imposes a hard detection floor
+of 13/105 = **12.4% penetrance**.
+
+Replacement: a per-donor propensity offset. For donor *i*, region *j*,
+
+> logit P(call_ij) = θ_j + logit(b_i)
+
+`b_i` is the donor's measured call rate at null regions; θ_j is the region's excess on the
+log-odds scale; penetrance is reported as the fitted probability at the median-propensity donor,
+with a Wald CI. `b_i` absorbs λ, depth, chemistry and coverage without modelling them.
+
+| | C07d tier | C08b adjusted |
+|---|---|---|
+| donors contributing | 105 | **189** |
+| median donors per region | 105 | **201** |
+| regions called | 10,894 (9.15%) | **16,583 (13.93%)** |
+| Zink DMRs recovered | 137/229 (59.8%) | **142/229 (62.0%)** |
+| penetrance detection floor | 0.124 | **0.081** |
+| median CI width on penetrance | — | 0.049 |
+
+Gained 5,753 regions, lost 64. So the tier split was costing ~35% of the callable set and ~4
+points of Zink recovery.
+
+**The honest caveat, and it is a large one: the answer depends on where you put the null.** `b_i`
+has to be estimated on *some* set of regions, and every candidate region is a candidate precisely
+because someone called ASM there. Sensitivity (`penetrance_null_sensitivity.tsv`):
+
+| null set for b_i | median b_i | regions called | floor |
+|---|---|---|---|
+| all candidates (**default**) | 0.0442 | 16,583 (13.9%) | 0.081 |
+| raw penetrance ≤ q0.75 | 0.0176 | 35,224 (29.6%) | 0.038 |
+| raw penetrance ≤ q0.50 | 0.0102 | 51,940 (43.6%) | 0.025 |
+
+The default is the conservative end — it contains the true signal, so `b_i` is biased upward and
+the test is under-powered. **Do not iterate this.** An earlier version re-estimated `b_i` after
+dropping significant regions and repeated: the null set eroded 119,024 → 73,832 over four passes,
+`b_i` fell 0.0442 → 0.0145, and 37.9% of candidates were "called". There is no fixed point — each
+pass removes regions, which lowers `b_i`, which makes more regions significant. This is the same
+"where is the null?" problem as λ in §7, one dimension over. Quote the conservative number and
+show the sensitivity table.
+
+---
+
+## 12. Two method checks that came back clean
+
+**The lead-variant scan is conservative, not anti-conservative** (`C08c`, chr21, 1,000
+permutations of which calibrated donors carry the ASM call, holding the variant set, het matrix
+and K fixed). C07d thresholds `lead_p` at an uncorrected 1e-4 although it is a minimum over a
+median of 75 SNVs, which looked like a ~5% false-lead rate by naive Bonferroni. It is not:
+**0 of 319 chr21 regions with lead_p < 1e-4 fail the permutation at p ≥ 0.05**. The permuted
+minimum-p has median 0.057, so LD collapses the effective number of independent tests to a
+handful and 1e-4 sits ~570× beyond the null median. The naive Bonferroni estimate was wrong
+because it assumed independence. Genome-wide run pending (job 14808255).
+
+**Reclassifying on imprinted domains moves 165 regions and confirms the diagnosis** (`C08d`;
+84 domains built by merging Zink DMRs within 1 Mb and padding 100 kb; median span 201 kb, max
+1.9 Mb). Among candidates at penetrance ≥ 0.5, the imprinted fraction rises **52.9% → 70.3%**,
+and `genotype_indep` falls from 127 regions to 38. The reclassified regions have median
+penetrance 0.562 and median direction consistency **0.571** — parent-of-origin, not cis — and
+their nearest genes are ZDBF2 (18), PWAR1 (15), SNHG14 (9), MIR298 (8), SNORD116-30 (6). Only
+30.3% sit next to a gene on a canonical imprinted-gene list, which is the expected shortfall:
+most of these are lncRNA/snoRNA entries inside known imprinted clusters rather than the named
+protein-coding gene, so the domain call is doing the work the gene-name list cannot.
 
 ---
 
@@ -338,6 +543,7 @@ promoter mQTL, and 1.9% are CGI-like. Results pending (C07b–d queued).
 | ASM calls / genome-wide merge | `results/asm/calls/`, `results/asm/genome/` |
 | ASM empirical null | `results/asm/null/`, `results/qc/data/asm_null_vs_real_chr20.tsv` |
 | ASM replication (tiers, candidates, re-tests, genotype context, classes) | `results/asm/replication/` |
+| ASM method fixes: merged locus sizes, adjusted penetrance, lead permutation, imprinted-domain reclass (C08a-d) | `results/asm/model/` |
 | Covariate variance tables / spatial heterogeneity / solo-WCGW | `results/qc/data/qc17/`, `results/qc/data/qc18/` |
 | Genome-wide PMD calls (native) | `data/pmds/<s>/<s>_hap<h>.pmd.bed` |
 | 10 kb bin matrix, domain frequency, PCA | `results/meth_bins/` |

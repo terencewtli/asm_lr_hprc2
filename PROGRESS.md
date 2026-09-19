@@ -42,11 +42,80 @@ Last updated: 2026-09-18 ~19:30
 | ASM replication: re-test per donor | `results/asm/replication/calls/` | 201/201 | complete (C07b, 14788189) |
 | ASM replication: genotype context | `results/asm/replication/genotype/` | 22/22 | complete (C07c, 14788192) |
 | ASM replication: summary + classes | `results/asm/replication/candidates_replication.tsv.gz` | — | complete (C07d, 14788197, 2026-09-18 01:36); `class_summary.tsv`, `nearest_het_by_call.tsv`, `chromhmm_by_class.tsv` |
+| ASM method fixes (C08a-d) | `results/asm/model/` | — | see below |
+| C08a merged ASM locus sizes | `results/asm/model/asm_locus_size_*.tsv`, `asm_merged_loci.tsv.gz` | 267,208 loci / 69 donors | complete 2026-09-18 |
+| C08b adjusted penetrance | `results/asm/model/penetrance_adjusted.tsv.gz`, `donor_propensity.tsv`, `penetrance_null_sensitivity.tsv` | 119,024 regions x 189 informative donors | complete 2026-09-18 |
+| C08c lead-variant permutation | `results/asm/model/lead_perm/<chrom>.lead_perm.tsv.gz` | 1/22 (chr21 smoke test only) | **array 14808255 queued**; see gotcha below |
+| C08d imprinted-domain reclass | `results/asm/model/candidates_reclassified.tsv.gz`, `imprinted_domains.bed`, `reclass_summary.tsv` | 84 domains, 165 regions moved | complete 2026-09-18 |
 
 ### ASM donor tiers (chr20 λ, see JOURNAL)
-λ < 1.2: 70 donors (use as-is) · 1.2–2: 69 · 2–3: 37 (genomic control) · > 3: 25 (exclude from
-genome-wide discovery) · > 8: NA20762 + 2 (exclude outright). Table:
+Authoritative table is `results/asm/replication/donor_tiers.tsv` (202 rows), which is what C07a-d
+actually used: **discovery 69 · replication 105 · inflated 22 · excluded 5**. (RESULTS §7's
+"70 donors" was an off-by-one against this file; corrected 2026-09-18.) 3 of the 5 "excluded" are
+excluded for having **no null run at all**, not for high λ — NA19338 among them, which is the
+deepest-domain donor in the cohort, so that exclusion is not random. Also
 `results/qc/data/qc16/asm_donor_qc_chr20.tsv` once QC16 runs.
+
+**λ is not just a cutoff — it is a modellable donor property.** log λ_gc regressed on covariates
+(199 donors): within-hap read spread R² 0.480, XIST skew 0.189 (95 females), constitutive-domain
+depth 0.125, superpopulation 0.049, **sex 0.001 (p = 0.65)**, passage/coverage/read-N50/EBV all
+≤ 0.018. Joint: read_sd + depth = **0.659**, + chemistry 0.673 (p = 0.021), + superpopulation
+0.678 (all terms p > 0.08). Prefer λ as a continuous covariate over the tier split.
+
+### ASM replication outputs (C07a-d) — read this before quoting any of it
+
+Complete 2026-09-18 01:36. `results/asm/replication/`. Five limits are structural, not bugs; they
+constrain what the tables can be asked. **C08a-d (2026-09-18, same day) addressed four of the
+five — status flagged inline below. Prefer `results/asm/model/` over the raw C07d columns.**
+
+1. **[ADDRESSED by C08b] The classifier has a hard penetrance floor of 12.4%.** `P_REP = 1e-3` against `P0 = 0.0454`
+   with `n_tested_rep = 105` means a region needs **≥ 13/105 donors** to be called anything other
+   than `sporadic`/`private`. Everything below is invisible by construction — that is 90.7% of
+   candidates. The paper's question is penetrance, so this is the binding constraint, not a
+   detail. `P0` is also estimated from the candidate set *including* true signal, which raises
+   the floor further; estimate it from matched non-candidate regions instead.
+2. **[PARTLY ADDRESSED by C08b — now ±2.4 points, median CI width 0.049] Penetrance resolution is ±8 points.** At n = 105 and p = 0.2, SE = 0.039. Report coarse
+   penetrance bands, not point estimates, and never rank individual loci by penetrance.
+3. **[ADDRESSED by C08d — imprinted fraction at penetrance >= 0.5 rises 52.9% -> 70.3%] `genotype_indep` is contaminated with imprinting at its high end** — the `zink_10kb` window
+   is far too tight for imprinted domains (SNRPN/PWS, ZDBF2, KCNQ1 span 100 kb–2 Mb). 127 of the
+   155 regions at penetrance ≥ 0.5 outside that window are in imprinted domains with direction
+   consistency ≈ 0.5. Reclassify on imprinted-domain intervals or on `lead_dir_consistency`.
+4. **[CHECKED by C08c — the concern was WRONG; see below] `lead_p` is uncorrected for the SNVs scanned.** `C07c` takes `argmin` over a median of 75
+   SNVs per region (mean 83, max 1,219) and `C07d` thresholds at 1e-4 with no permutation and no
+   LD correction. Naive upper bound ≈ 986 spurious leads across 118,796 candidates vs 18,225
+   passing the lead filter alone (~5%). Needs a permutation null before the 6,053
+   `genotype_linked` count is publishable.
+   **Permutation result (chr21, B=1000): 0 of 319 regions with lead_p < 1e-4 fail at p >= 0.05.**
+   The permuted minimum-p has median 0.057, i.e. LD collapses ~75 nominal tests to a handful and
+   1e-4 is ~570x beyond the null median. The Bonferroni estimate above assumed independence and
+   was wrong. Genome-wide confirmation pending (14808255).
+5. **`genotype_linked`'s direction consistency of 1.00 is circular** (`DIR_MIN = 0.8` is one of
+   its selection criteria). The non-circular validation is `imprinting` at 0.571 and
+   `zink_control` at 0.588 — neither class is selected on that statistic. Quote those.
+
+Two more to state in any methods section:
+- **Tier assignment is confounded with yield** (λ vs `n_asm` Spearman 0.974), so discovery donors
+  are by construction the lowest-ASM donors. Any ASM caused by the same donor state that raises λ
+  is systematically absent from the candidate set. A sensitivity run discovering on a λ-matched
+  random subset of replication donors would bound this.
+- **Low-read regions are untestable but stay in the denominator.** `MIN_READS = 3`, but complete
+  separation gives p = 2/C(n₁+n₂, n₁), so ~14 reads/hap are needed before a perfectly separated
+  locus can clear genome-wide BH. Per-hap depth runs 15.6–41.9×, so this dilutes the 0.21% rate
+  unevenly across donors. Report a callable-region rate alongside it.
+
+**[RESOLVED by C08a]** `MAX_SPAN = 1000` in `C01a` caps every region at 1 kb, so the
+"818 bp / 7 CpG ASM locus" had to be checked against merged loci. It survives: 93.5% of merged
+loci are one tile, median merged span 841 bp, p95 1,762 bp. The cap was not binding. Quote
+`results/asm/model/asm_locus_size_pooled.tsv`, not the tile width.
+
+**Still open, and now the biggest one:** C08b's answer depends on where the null for `b_i` is
+put — 13.9% / 29.6% / 43.6% of candidates called at null quantile 1.00 / 0.75 / 0.50. Use the
+conservative default and always show `penetrance_null_sensitivity.tsv` alongside it. Do NOT
+iterate the null-set estimate; it has no fixed point (RESULTS §11).
+
+**Genomic control zeroes 12 donors outright** (`donor_propensity.tsv`): 9 of 13 `inflated` and 3
+`excluded` call nothing at any candidate after GC, lowest lambda among them 3.84 — not 12.9 as
+RESULTS §7 originally said. Effective cohort for anything GC-based is **189 donors**.
 
 ### Donor × CpG matrix format (C03a)
 `results/asm/cpg_matrix/<chrom>.<source>.npz`, source = `all` (every read, from the bigWigs) or
@@ -125,6 +194,11 @@ Cohort-wide results from the rebuilds (2026-09-17):
 Deletion commands for all of the above are in `JOURNAL.md` → "Jobs" section.
 
 ## Recurring gotchas (cost time at least once)
+
+- **C08c chr21 holds a smoke-test file with B=200, not B=1000.** It was written by hand while
+  developing the script, and the array's skip-if-exists will therefore leave chr21 at the lower
+  permutation count. Remove it before or after 14808255 finishes and re-run task 21:
+  `rm results/asm/model/lead_perm/chr21.lead_perm.tsv.gz` (then `qsub -t 21 scripts/asm/C08c_lead_permutation_array.sh`).
 
 - `pyBigWig.stats` needs `exact=True`; zoom-level approximation was off >10⁶-fold on long genes.
 - `ont_asm_caller` needs `math.comb` (3.8+); the allcools env is Python 3.7 — shim it.
